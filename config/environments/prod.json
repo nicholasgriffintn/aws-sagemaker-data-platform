@@ -3,7 +3,7 @@
 	"awsRegion": "us-east-1",
 	"domainName": "unified-studio-prod",
 	"appNetworkAccessType": "VpcOnly",
-	"enableUnifiedStudio": true,
+	"enableUnifiedStudio": false,
 	"studioWebPortalAccess": "DISABLED",
 	"projectS3Prefix": "unified-studio/projects/",
 	"enableGlue": true,
