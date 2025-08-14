@@ -1,0 +1,6 @@
+{
+	"app": "npx ts-node --prefer-ts-exts bin/aws-sagemaker-data-platform.ts",
+	"context": {
+		"env": "dev"
+	}
+}

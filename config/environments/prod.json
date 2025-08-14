@@ -1,0 +1,14 @@
+{
+	"awsAccount": "123456789012",
+	"awsRegion": "us-east-1",
+	"domainName": "unified-studio-prod",
+	"appNetworkAccessType": "VpcOnly",
+	"enableUnifiedStudio": true,
+	"studioWebPortalAccess": "DISABLED",
+	"projectS3Prefix": "unified-studio/projects/",
+	"enableGlue": true,
+	"enableAthena": true,
+	"enableBedrock": true,
+	"enableBedrockKnowledgeBase": false,
+	"enableBedrockGuardrails": true
+}

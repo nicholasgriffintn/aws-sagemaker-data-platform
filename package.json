@@ -1,0 +1,31 @@
+{
+  "name": "aws-sagemaker-data-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CDK-based data platform with Amazon SageMaker Unified Studio",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.10.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf cdk.out dist node_modules",
+    "watch": "tsc -w -p tsconfig.json",
+    "synth": "cdk synth -c env=dev",
+    "diff": "cdk diff -c env=dev",
+    "deploy": "cdk deploy -c env=dev --all",
+    "destroy": "cdk destroy -c env=dev --all"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.1",
+    "aws-cdk": "^2.1025.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.211.0",
+    "constructs": "^10.4.2",
+    "source-map-support": "^0.5.21"
+  },
+  "packageManager": "pnpm@10.14.0"
+}
