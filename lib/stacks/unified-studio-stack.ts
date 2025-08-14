@@ -149,8 +149,19 @@ export class UnifiedStudioStack extends Stack {
 		this.domain = new sagemaker.CfnDomain(this, 'Domain', domainProps);
 
 		if (props.enableUnifiedStudio) {
-			this.domain.addPropertyOverride('UnifiedStudioSettings.ProjectS3Path', projectS3Uri);
-			this.domain.addPropertyOverride('UnifiedStudioSettings.StudioWebPortalAccess', props.studioWebPortalAccess);
+			const unifiedStudioSettingsProperty: sagemaker.CfnDomain.UnifiedStudioSettingsProperty = {
+				domainAccountId: this.domain.attrDomainId,
+				domainId: this.domain.attrDomainId,
+				domainRegion: this.region,
+				environmentId: props.environmentName,
+				projectId: props.projectS3Prefix,
+				projectS3Path: projectS3Uri,
+				singleSignOnApplicationArn: 'singleSignOnApplicationArn',
+				studioWebPortalAccess: props.studioWebPortalAccess,
+			};
+			// TODO: This doesn't seem to be correct, erroring with:
+			// extraneous key [UnifiedStudioSettings] is not permitted
+			this.domain.addPropertyOverride('UnifiedStudioSettings', unifiedStudioSettingsProperty);
 		}
 
 		const userProfile = new sagemaker.CfnUserProfile(this, 'UserProfileDataScientist', {
