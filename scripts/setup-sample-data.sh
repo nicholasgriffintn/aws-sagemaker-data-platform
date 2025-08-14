@@ -18,20 +18,19 @@ STACK_NAME="DataPlatform-${ENV}"
 
 echo -e "${YELLOW}Getting S3 bucket names from CloudFormation stack...${NC}"
 
-get_stack_output() {
-    local output_key=$1
-    aws cloudformation describe-stacks \
-        --stack-name "${STACK_NAME}" \
-        --query "Stacks[0].Outputs[?OutputKey=='${output_key}'].OutputValue" \
+get_export_value() {
+    local export_name=$1
+    aws cloudformation list-exports \
+        --query "Exports[?Name=='${export_name}'].Value" \
         --output text 2>/dev/null || echo ""
 }
 
-RAW_BUCKET=$(get_stack_output "RawDataBucketName")
-CURATED_BUCKET=$(get_stack_output "CuratedDataBucketName") 
-PROJECT_BUCKET=$(get_stack_output "ProjectBucketName")
+RAW_BUCKET=$(get_export_value "${ENV}-RawBucketName")
+CURATED_BUCKET=$(get_export_value "${ENV}-CuratedBucketName") 
+PROJECT_BUCKET=$(get_export_value "${ENV}-ProjectBucketName")
 
 if [[ -z "$RAW_BUCKET" ]]; then
-    echo -e "${YELLOW}Trying to get bucket names from nested stacks...${NC}"
+    echo -e "${YELLOW}Trying to get bucket names from nested DataLake stack...${NC}"
     
     DATALAKE_STACK=$(aws cloudformation list-stack-resources \
         --stack-name "${STACK_NAME}" \
@@ -39,19 +38,21 @@ if [[ -z "$RAW_BUCKET" ]]; then
         --output text 2>/dev/null || echo "")
     
     if [[ -n "$DATALAKE_STACK" ]]; then
+        echo "Found DataLake stack: ${DATALAKE_STACK}"
+        
         RAW_BUCKET=$(aws cloudformation describe-stacks \
             --stack-name "${DATALAKE_STACK}" \
-            --query "Stacks[0].Outputs[?OutputKey=='RawBucketName'].OutputValue" \
+            --query "Stacks[0].Outputs[?contains(OutputKey,'RawBucket') && !contains(OutputKey,'Arn')].OutputValue" \
             --output text 2>/dev/null || echo "")
         
         CURATED_BUCKET=$(aws cloudformation describe-stacks \
             --stack-name "${DATALAKE_STACK}" \
-            --query "Stacks[0].Outputs[?OutputKey=='CuratedBucketName'].OutputValue" \
+            --query "Stacks[0].Outputs[?contains(OutputKey,'CuratedBucket') && !contains(OutputKey,'Arn')].OutputValue" \
             --output text 2>/dev/null || echo "")
             
         PROJECT_BUCKET=$(aws cloudformation describe-stacks \
             --stack-name "${DATALAKE_STACK}" \
-            --query "Stacks[0].Outputs[?OutputKey=='ProjectBucketName'].OutputValue" \
+            --query "Stacks[0].Outputs[?contains(OutputKey,'ProjectArtifactsBucket') && !contains(OutputKey,'Arn')].OutputValue" \
             --output text 2>/dev/null || echo "")
     fi
 fi
