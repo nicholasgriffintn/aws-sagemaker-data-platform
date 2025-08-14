@@ -1,0 +1,82 @@
+[
+  {
+    "customer_id": "CUST001",
+    "first_name": "John",
+    "last_name": "Smith",
+    "email": "john.smith@email.com",
+    "phone": "+1-555-0101",
+    "address": {
+      "street": "123 Main St",
+      "city": "New York",
+      "state": "NY",
+      "zip_code": "10001"
+    },
+    "date_joined": "2023-06-15",
+    "customer_segment": "Premium",
+    "total_lifetime_value": 2450.75
+  },
+  {
+    "customer_id": "CUST002",
+    "first_name": "Sarah",
+    "last_name": "Johnson",
+    "email": "sarah.johnson@email.com",
+    "phone": "+1-555-0102",
+    "address": {
+      "street": "456 Oak Ave",
+      "city": "Los Angeles",
+      "state": "CA",
+      "zip_code": "90210"
+    },
+    "date_joined": "2023-08-22",
+    "customer_segment": "Standard",
+    "total_lifetime_value": 1875.30
+  },
+  {
+    "customer_id": "CUST003",
+    "first_name": "Michael",
+    "last_name": "Davis",
+    "email": "michael.davis@email.com",
+    "phone": "+1-555-0103",
+    "address": {
+      "street": "789 Pine Rd",
+      "city": "Chicago",
+      "state": "IL",
+      "zip_code": "60601"
+    },
+    "date_joined": "2023-04-10",
+    "customer_segment": "Premium",
+    "total_lifetime_value": 3200.45
+  },
+  {
+    "customer_id": "CUST004",
+    "first_name": "Emily",
+    "last_name": "Wilson",
+    "email": "emily.wilson@email.com",
+    "phone": "+1-555-0104",
+    "address": {
+      "street": "321 Beach Blvd",
+      "city": "Miami",
+      "state": "FL",
+      "zip_code": "33101"
+    },
+    "date_joined": "2023-09-05",
+    "customer_segment": "Standard",
+    "total_lifetime_value": 1650.20
+  },
+  {
+    "customer_id": "CUST005",
+    "first_name": "David",
+    "last_name": "Brown",
+    "email": "david.brown@email.com",
+    "phone": "+1-555-0105",
+    "address": {
+      "street": "654 Hill St",
+      "city": "Seattle",
+      "state": "WA",
+      "zip_code": "98101"
+    },
+    "date_joined": "2023-07-18",
+    "customer_segment": "Basic",
+    "total_lifetime_value": 890.15
+  }
+]

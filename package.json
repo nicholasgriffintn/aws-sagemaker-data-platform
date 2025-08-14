@@ -14,7 +14,11 @@
     "synth": "cdk synth -c env=dev",
     "diff": "cdk diff -c env=dev",
     "deploy": "cdk deploy -c env=dev --all",
-    "destroy": "cdk destroy -c env=dev --all"
+    "destroy": "cdk destroy -c env=dev --all",
+    "deploy:full": "./scripts/deploy-platform.sh dev",
+    "deploy:prod": "./scripts/deploy-platform.sh prod",
+    "setup:data": "./scripts/setup-sample-data.sh dev",
+    "setup:data:prod": "./scripts/setup-sample-data.sh prod"
   },
   "devDependencies": {
     "@types/node": "^24.2.1",
