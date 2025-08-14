@@ -12,7 +12,7 @@ export class NetworkStack extends Stack {
 		super(scope, id);
 
 		this.vpc = new ec2.Vpc(this, 'Vpc', {
-			maxAzs: 2,
+			maxAzs: 3,
 			natGateways: 1,
 		});
 	}
