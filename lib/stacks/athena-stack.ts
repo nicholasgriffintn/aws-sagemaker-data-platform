@@ -67,36 +67,42 @@ SELECT * FROM "${props.glueDatabase.ref}"."your_table_name" LIMIT 10;`,
 				query: `-- Data quality check template
 -- Replace 'your_table_name' with actual table name
 SELECT 
-    COUNT(*) as total_rows,
-    COUNT(DISTINCT column_name) as unique_values,
-    SUM(CASE WHEN column_name IS NULL THEN 1 ELSE 0 END) as null_count
+	COUNT(*) as total_rows,
+	COUNT(DISTINCT column_name) as unique_values,
+	SUM(CASE WHEN column_name IS NULL THEN 1 ELSE 0 END) as null_count
 FROM "${props.glueDatabase.ref}"."your_table_name";`,
 			},
 		];
 
 		sampleQueries.forEach((queryConfig, index) => {
-			new athena.CfnNamedQuery(this, `NamedQuery${index + 1}`, {
+			const namedQuery = new athena.CfnNamedQuery(this, `NamedQuery${index + 1}`, {
 				name: `${props.environmentName}-${queryConfig.name}`,
 				description: queryConfig.description,
 				queryString: queryConfig.query,
 				database: props.glueDatabase.ref,
-				workGroup: this.workGroup.name,
+				workGroup: this.workGroup.ref,
 			});
+			namedQuery.addDependency(this.workGroup);
+			namedQuery.addDependency(this.dataSource);
 		});
 
 		new CfnOutput(this, 'AthenaWorkGroupName', {
-			value: this.workGroup.name!,
+			value: this.workGroup.ref,
 			description: 'Athena WorkGroup for Unified Studio queries',
 		});
 
-		new CfnOutput(this, 'AthenaQueryResultsLocation', {
-			value: `s3://${props.queryResultsBucket.bucketName}/athena-results/`,
-			description: 'S3 location for Athena query results',
-		});
+		if (props.queryResultsBucket.bucketName) {
+			new CfnOutput(this, 'AthenaQueryResultsLocation', {
+				value: `s3://${props.queryResultsBucket.bucketName}/athena-results/`,
+				description: 'S3 location for Athena query results',
+			});
+		}
 
-		new CfnOutput(this, 'GlueDataCatalogName', {
-			value: this.dataSource.name!,
-			description: 'Glue Data Catalog name for Athena integration',
-		});
+		if (this.dataSource.name) {
+			new CfnOutput(this, "GlueDataCatalogName", {
+				value: this.dataSource.name,
+				description: "Glue Data Catalog name for Athena integration",
+			});
+		}
 	}
 }
