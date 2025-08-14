@@ -84,7 +84,7 @@ FROM "${props.glueDatabase.ref}"."your_table_name";`,
 			});
 		});
 
-		new CfnOutput(this, 'AthenaWorkGroup', {
+		new CfnOutput(this, 'AthenaWorkGroupName', {
 			value: this.workGroup.name!,
 			description: 'Athena WorkGroup for Unified Studio queries',
 		});

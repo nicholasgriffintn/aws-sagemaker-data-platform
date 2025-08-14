@@ -93,41 +93,5 @@ export class DataPlatformStack extends Stack {
 			bedrockKnowledgeBase: bedrockStack?.knowledgeBase,
 			bedrockGuardrail: bedrockStack?.guardrail,
 		});
-
-		new CfnOutput(this, 'ProjectBucketName', {
-			value: dataLake.projectBucket.bucketName,
-			description: 'S3 bucket for project artifacts and data',
-		});
-
-		new CfnOutput(this, 'RawDataBucketName', {
-			value: dataLake.rawBucket.bucketName,
-			description: 'S3 bucket for raw data ingestion',
-		});
-
-		new CfnOutput(this, 'CuratedDataBucketName', {
-			value: dataLake.curatedBucket.bucketName,
-			description: 'S3 bucket for processed/curated data',
-		});
-
-		if (glueStack) {
-			new CfnOutput(this, 'DataCatalogDatabaseRef', {
-				value: glueStack.database.ref,
-				description: 'Glue Data Catalog database for metadata management',
-			});
-		}
-
-		if (athenaStack) {
-			new CfnOutput(this, 'AthenaWorkGroupName', {
-				value: athenaStack.workGroup.name!,
-				description: 'Athena WorkGroup for SQL analytics',
-			});
-		}
-
-		if (bedrockStack?.knowledgeBase) {
-			new CfnOutput(this, 'BedrockKnowledgeBaseId', {
-				value: bedrockStack.knowledgeBase.attrKnowledgeBaseId,
-				description: 'Bedrock Knowledge Base for RAG applications',
-			});
-		}
 	}
 }
