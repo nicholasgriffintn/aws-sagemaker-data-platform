@@ -4,5 +4,3 @@ dist/
 .DS_Store
 .env
 
-# CDK context cache
-cdk.context.json
