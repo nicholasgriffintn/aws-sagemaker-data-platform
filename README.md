@@ -17,13 +17,7 @@ pnpm install
 ## Deploy
 
 ```bash
-pnpm run deploy:full
-```
-
-You can also deploy a production environment by running:
-
-```bash
-pnpm run deploy:prod
+pnpm run deploy
 ```
 
 ## Destroy

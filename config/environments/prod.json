@@ -1,14 +1,6 @@
 {
-	"awsAccount": "123456789012",
-	"awsRegion": "us-east-1",
-	"domainName": "unified-studio-prod",
-	"appNetworkAccessType": "VpcOnly",
-	"enableUnifiedStudio": false,
-	"studioWebPortalAccess": "DISABLED",
-	"projectS3Prefix": "unified-studio/projects/",
-	"enableGlue": true,
-	"enableAthena": true,
-	"enableBedrock": true,
-	"enableBedrockKnowledgeBase": false,
-	"enableBedrockGuardrails": true
+	"componentName": "aws-sagemaker-data-platform",
+	"awsAccount": "651706750584",
+	"awsRegion": "eu-west-1",
+	"private": false
 }

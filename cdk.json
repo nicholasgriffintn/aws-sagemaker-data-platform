@@ -1,6 +1,9 @@
 {
 	"app": "npx ts-node --prefer-ts-exts bin/aws-sagemaker-data-platform.ts",
 	"context": {
+		"componentName": "aws-sagemaker-data-platform",
+		"account": "651706750584",
+		"region": "eu-west-1",
 		"env": "dev"
 	}
 }

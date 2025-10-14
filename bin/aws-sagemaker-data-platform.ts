@@ -11,7 +11,7 @@ function getEnv(): string {
 const app = new App();
 const envName = app.node.tryGetContext('env') || getEnv();
 
-new DataPlatformStack(app, `DataPlatform-${envName}`, {
+new DataPlatformStack(app, `AWSSagemakerDataPlatform-${envName}`, {
 	env: {
 		account: process.env.CDK_DEFAULT_ACCOUNT,
 		region: process.env.CDK_DEFAULT_REGION,
