@@ -10,6 +10,7 @@ import { SagemakerStudioStack } from './stacks/sagemaker-studio';
 import { UserProfileStack } from './stacks/user-profile';
 import { CodeDeploymentStack } from './stacks/code-deployment';
 import { LakeFormationStack } from './stacks/lakeformation';
+import { GlueStack } from './stacks/glue';
 
 import { ExperimentPipelineStack } from './stacks/pipelines/experiment-pipeline';
 
@@ -62,6 +63,12 @@ export class DataPlatformStack extends Stack {
     storage.kmsKey.grantEncryptDecrypt(iam.sagemakerJobRole);
     storage.kmsKey.grantEncryptDecrypt(iam.pipelineRole);
 
+    const glue = new GlueStack(this, 'Glue', {
+      environmentName: props.environmentName,
+      componentName: cfg.componentName,
+    });
+    glue.addDependency(storage);
+
     const lakeFormation = new LakeFormationStack(this, 'LakeFormation', {
       environmentName: props.environmentName,
       componentName: cfg.componentName,
@@ -71,6 +78,10 @@ export class DataPlatformStack extends Stack {
       pipelineRole: iam.pipelineRole,
       sagemakerExecutionRole: iam.sagemakerExecutionRole,
       sagemakerJobRole: iam.sagemakerJobRole,
+      rawDatabase: glue.rawDatabase,
+      rawDatabaseName: glue.rawDatabaseName,
+      processedDatabase: glue.processedDatabase,
+      processedDatabaseName: glue.processedDatabaseName,
     });
     lakeFormation.addDependency(storage);
     lakeFormation.addDependency(iam);
