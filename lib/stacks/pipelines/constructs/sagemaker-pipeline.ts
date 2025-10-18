@@ -1,3 +1,4 @@
+import { Fn } from 'aws-cdk-lib';
 import { CfnPipeline } from 'aws-cdk-lib/aws-sagemaker';
 import { Construct } from 'constructs';
 
@@ -134,35 +135,37 @@ export class SageMakerPipeline extends Construct {
                 },
               },
             ],
-            ProcessingOutputs: [
-              {
-                OutputName: 'train',
-                AppManaged: false,
-                S3Output: {
-                  S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/processed/train`,
-                  LocalPath: '/opt/ml/processing/train',
-                  S3UploadMode: 'EndOfJob',
+            ProcessingOutputConfig: {
+              Outputs: [
+                {
+                  OutputName: 'train',
+                  AppManaged: false,
+                  S3Output: {
+                    S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/processed/train`,
+                    LocalPath: '/opt/ml/processing/train',
+                    S3UploadMode: 'EndOfJob',
+                  },
                 },
-              },
-              {
-                OutputName: 'validation',
-                AppManaged: false,
-                S3Output: {
-                  S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/processed/validation`,
-                  LocalPath: '/opt/ml/processing/validation',
-                  S3UploadMode: 'EndOfJob',
+                {
+                  OutputName: 'validation',
+                  AppManaged: false,
+                  S3Output: {
+                    S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/processed/validation`,
+                    LocalPath: '/opt/ml/processing/validation',
+                    S3UploadMode: 'EndOfJob',
+                  },
                 },
-              },
-              {
-                OutputName: 'test',
-                AppManaged: false,
-                S3Output: {
-                  S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/processed/test`,
-                  LocalPath: '/opt/ml/processing/test',
-                  S3UploadMode: 'EndOfJob',
+                {
+                  OutputName: 'test',
+                  AppManaged: false,
+                  S3Output: {
+                    S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/processed/test`,
+                    LocalPath: '/opt/ml/processing/test',
+                    S3UploadMode: 'EndOfJob',
+                  },
                 },
-              },
-            ],
+              ],
+            },
           },
         },
         {
@@ -267,25 +270,27 @@ export class SageMakerPipeline extends Construct {
                 },
               },
             ],
-            ProcessingOutputs: [
-              {
-                OutputName: 'evaluation',
-                AppManaged: false,
-                S3Output: {
-                  S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/evaluation`,
-                  LocalPath: '/opt/ml/processing/evaluation',
-                  S3UploadMode: 'EndOfJob',
+            ProcessingOutputConfig: {
+              Outputs: [
+                {
+                  OutputName: 'evaluation',
+                  AppManaged: false,
+                  S3Output: {
+                    S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/evaluation`,
+                    LocalPath: '/opt/ml/processing/evaluation',
+                    S3UploadMode: 'EndOfJob',
+                  },
                 },
-              },
-            ],
-            PropertyFiles: [
-              {
-                PropertyFileName: 'EvaluationReport',
-                OutputName: 'evaluation',
-                FilePath: 'model_approval.json',
-              },
-            ],
+              ],
+            },
           },
+          PropertyFiles: [
+            {
+              PropertyFileName: 'EvaluationReport',
+              OutputName: 'evaluation',
+              FilePath: 'model_approval.json',
+            },
+          ],
         },
         {
           Name: 'CheckModelApproval',
@@ -310,7 +315,6 @@ export class SageMakerPipeline extends Construct {
                 Name: 'RegisterApprovedModel',
                 Type: 'RegisterModel',
                 Arguments: {
-                  ModelName: `${props.componentName}-${props.environmentName}-${props.pipelineName}-model`,
                   ModelPackageGroupName: `${props.componentName}-${props.environmentName}-${props.pipelineName}-models`,
                   ModelApprovalStatus: 'Approved',
                   InferenceSpecification: {
@@ -341,17 +345,7 @@ export class SageMakerPipeline extends Construct {
                     ModelQuality: {
                       Statistics: {
                         ContentType: 'application/json',
-                        S3Uri: {
-                          'Std:Join': {
-                            On: '/',
-                            Values: [
-                              {
-                                Get: 'Steps.ModelEvaluation.ProcessingOutputs.evaluation.S3Output.S3Uri',
-                              },
-                              'evaluation_metrics.json',
-                            ],
-                          },
-                        },
+                        S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/evaluation/evaluation_metrics.json`,
                       },
                     },
                   },
@@ -372,11 +366,15 @@ export class SageMakerPipeline extends Construct {
       ],
     };
 
+    const pipelineDefinitionBody = Fn.toJsonString(pipelineDefinition);
+
     this.pipeline = new CfnPipeline(this, 'SagemakerPipeline', {
       pipelineName: `${props.componentName}-${props.environmentName}-${
         props.pipelineNameSuffix ?? `${props.pipelineName}-bucketing-pipeline`
       }`,
-      pipelineDefinition,
+      pipelineDefinition: {
+        PipelineDefinitionBody: pipelineDefinitionBody,
+      },
       roleArn: props.pipelineRole.roleArn,
       pipelineDescription: `Pipeline for ${props.pipelineName}`,
     });

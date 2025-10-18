@@ -28,7 +28,7 @@ export class DataIngestion extends Construct {
       assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
       managedPolicies: [
         ManagedPolicy.fromAwsManagedPolicyName(
-          'service-role/AWSLambdaVPCExecutionRole'
+          'service-role/AWSLambdaVPCAccessExecutionRole'
         ),
       ],
     });
