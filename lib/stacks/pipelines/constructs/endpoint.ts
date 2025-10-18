@@ -20,6 +20,7 @@ export interface EndpointProps {
   dataCapturePrefix?: string;
   modelArtifactsPath?: string;
   sagemakerImageUri: string;
+  modelInterfaceScript?: string;
   kmsKeyId: string;
   primaryInstanceType: string;
   monitoring?: Omit<
@@ -52,7 +53,7 @@ export class Endpoint extends Construct {
         image: props.sagemakerImageUri,
         modelDataUrl,
         environment: {
-          SAGEMAKER_PROGRAM: `sagemaker-scripts/${props.pipelineName}-pipeline/inference/inference.py`,
+          SAGEMAKER_PROGRAM: props.modelInterfaceScript ?? 'inference.py',
           SAGEMAKER_SUBMIT_DIRECTORY: `s3://${props.codeBucket.bucketName}/`,
         },
       },

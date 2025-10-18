@@ -96,6 +96,8 @@ export class ExperimentPipelineStack extends Stack {
       vpc: props.vpc,
       securityGroup: props.securityGroup,
       sagemakerImageUri,
+      modelInterfaceScript:
+        'sagemaker-scripts/experiment-pipeline/inference/model_interface.py',
       kmsKeyId: props.dataKey.keyId,
       primaryInstanceType: this.imageId,
       monitoring: {
