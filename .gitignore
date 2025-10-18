@@ -3,4 +3,5 @@ cdk.out/
 dist/
 .DS_Store
 .env
-
+.venv
+__pycache__

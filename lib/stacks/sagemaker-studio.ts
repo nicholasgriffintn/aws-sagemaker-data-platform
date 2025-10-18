@@ -29,7 +29,7 @@ export class SagemakerStudioStack extends Stack {
       appNetworkAccessType: props.private ? 'VpcOnly' : 'PublicInternetOnly',
       defaultUserSettings: {
         securityGroups: [props.securityGroup.securityGroupId],
-        executionRole: props.executionRole as unknown as string, // For some reason, the type here is string...
+        executionRole: props.executionRole.roleArn,
       },
       kmsKeyId: props.dataKey.keyId,
       vpcId: props.vpc.vpcId,

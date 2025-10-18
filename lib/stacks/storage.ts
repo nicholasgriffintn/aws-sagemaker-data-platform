@@ -13,6 +13,8 @@ export class StorageStack extends Stack {
 	public kmsKey: Key;
   public logBucket: Bucket;
   public rawDataBucket: Bucket;
+  public processedDataBucket: Bucket;
+  public codeBucket: Bucket;
 
 	constructor(scope: Construct, id: string, props: StorageStackProps) {
 		super(scope, id, props);
@@ -31,7 +33,7 @@ export class StorageStack extends Stack {
 			encryptionKey: this.kmsKey,
 			enforceSSL: true,
 			autoDeleteObjects: true,
-			objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
+			objectOwnership: ObjectOwnership.OBJECT_WRITER,
 		});
 
 		this.rawDataBucket = new Bucket(this, `${props.componentName}-raw-data-bucket`, {
@@ -47,6 +49,33 @@ export class StorageStack extends Stack {
 			objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
 		});
 
+		this.processedDataBucket = new Bucket(this, `${props.componentName}-processed-data-bucket`, {
+			bucketName: `${props.componentName}-${props.environmentName}-processed-data-bucket`,
+			blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+			removalPolicy: RemovalPolicy.DESTROY,
+			encryption: BucketEncryption.KMS,
+			encryptionKey: this.kmsKey,
+			enforceSSL: true,
+			serverAccessLogsBucket: this.logBucket,
+			serverAccessLogsPrefix: `processed-data-bucket-access-logs/`,
+			autoDeleteObjects: true,
+			objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
+		});
+
+		this.codeBucket = new Bucket(this, `${props.componentName}-code-bucket`, {
+			bucketName: `${props.componentName}-${props.environmentName}-code-bucket`,
+			blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
+			removalPolicy: RemovalPolicy.DESTROY,
+			encryption: BucketEncryption.KMS,
+			encryptionKey: this.kmsKey,
+			enforceSSL: true,
+			serverAccessLogsBucket: this.logBucket,
+			serverAccessLogsPrefix: `code-bucket-access-logs/`,
+			autoDeleteObjects: true,
+			objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
+			versioned: true,
+		});
+
 		new CfnOutput(this, 'kms_key_arn', {
 			value: this.kmsKey.keyArn,
 			description: 'The ARN of the KMS key',
@@ -60,6 +89,16 @@ export class StorageStack extends Stack {
 		new CfnOutput(this, 'raw_data_bucket_name', {
 			value: this.rawDataBucket.bucketName,
 			description: 'The name of the raw data bucket',
+		});
+
+		new CfnOutput(this, 'processed_data_bucket_name', {
+			value: this.processedDataBucket.bucketName,
+			description: 'The name of the processed data bucket',
+		});
+
+		new CfnOutput(this, 'code_bucket_name', {
+			value: this.codeBucket.bucketName,
+			description: 'The name of the code bucket',
 		});
 	}
 }

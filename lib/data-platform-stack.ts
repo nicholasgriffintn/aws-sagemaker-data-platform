@@ -8,66 +8,113 @@ import { IamStack } from './stacks/iam';
 import { StorageStack } from './stacks/storage';
 import { SagemakerStudioStack } from './stacks/sagemaker-studio';
 import { UserProfileStack } from './stacks/user-profile';
+import { CodeDeploymentStack } from './stacks/code-deployment';
+import { LakeFormationStack } from './stacks/lakeformation';
+
+import { ExperimentPipelineStack } from './stacks/pipelines/experiment-pipeline';
 
 export interface DataPlatformStackProps extends StackProps {
-	environmentName: string;
+  environmentName: string;
 }
 
 interface EnvConfig {
-	componentName: string;
-	awsAccount: string;
-	awsRegion: string;
-	private: boolean;
+  componentName: string;
+  awsAccount: string;
+  awsRegion: string;
+  private: boolean;
 }
 
 function loadEnvConfig(envName: string): EnvConfig {
-	const configPath = path.join(__dirname, `../config/environments/${envName}.json`);
-	const raw = fs.readFileSync(configPath, 'utf-8');
-	return JSON.parse(raw) as EnvConfig;
+  const configPath = path.join(
+    __dirname,
+    `../config/environments/${envName}.json`
+  );
+  const raw = fs.readFileSync(configPath, 'utf-8');
+  return JSON.parse(raw) as EnvConfig;
 }
 
 export class DataPlatformStack extends Stack {
-	constructor(scope: Construct, id: string, props: DataPlatformStackProps) {
-		super(scope, id, props);
+  constructor(scope: Construct, id: string, props: DataPlatformStackProps) {
+    super(scope, id, props);
 
-		const cfg = loadEnvConfig(props.environmentName);
-		Tags.of(this).add('Environment', props.environmentName);
+    const cfg = loadEnvConfig(props.environmentName);
+    Tags.of(this).add('Environment', props.environmentName);
 
-		const network = new NetworkStack(this, 'Network', {
-			environmentName: props.environmentName,
-			componentName: cfg.componentName,
-			private: cfg.private,
-		});
+    const network = new NetworkStack(this, 'Network', {
+      environmentName: props.environmentName,
+      componentName: cfg.componentName,
+      private: cfg.private,
+    });
 
-		const storage = new StorageStack(this, 'Storage', {
-			environmentName: props.environmentName,
-			componentName: cfg.componentName,
-		});
+    const storage = new StorageStack(this, 'Storage', {
+      environmentName: props.environmentName,
+      componentName: cfg.componentName,
+    });
 
-		const iam = new IamStack(this, 'Iam', {
-			environmentName: props.environmentName,
-			componentName: cfg.componentName,
-		});
+    const iam = new IamStack(this, 'Iam', {
+      environmentName: props.environmentName,
+      componentName: cfg.componentName,
+    });
+    storage.codeBucket.grantRead(iam.pipelineRole);
+    storage.rawDataBucket.grantRead(iam.pipelineRole);
+    storage.processedDataBucket.grantReadWrite(iam.pipelineRole);
+    storage.rawDataBucket.grantReadWrite(iam.sagemakerJobRole);
+    storage.kmsKey.grantEncryptDecrypt(iam.sagemakerJobRole);
+    storage.kmsKey.grantEncryptDecrypt(iam.pipelineRole);
 
-		storage.rawDataBucket.grantReadWrite(iam.sagemakerJobRole);
-		storage.kmsKey.grantEncryptDecrypt(iam.sagemakerJobRole);
+    const lakeFormation = new LakeFormationStack(this, 'LakeFormation', {
+      environmentName: props.environmentName,
+      componentName: cfg.componentName,
+      rawDataBucket: storage.rawDataBucket,
+      processedDataBucket: storage.processedDataBucket,
+      dataLakeAdmins: [iam.pipelineRole],
+      pipelineRole: iam.pipelineRole,
+      sagemakerExecutionRole: iam.sagemakerExecutionRole,
+      sagemakerJobRole: iam.sagemakerJobRole,
+    });
+    lakeFormation.addDependency(storage);
+    lakeFormation.addDependency(iam);
 
-		const sagemakerStudio = new SagemakerStudioStack(this, 'SagemakerStudio', {
-			environmentName: props.environmentName,
-			componentName: cfg.componentName,
-			vpc: network.vpc,
-			securityGroup: network.sagemakerStudioSg,
-			dataBucket: storage.rawDataBucket,
-			dataKey: storage.kmsKey,
-			executionRole: iam.sagemakerExecutionRole,
-			private: cfg.private,
-		});
+    const codeDeployment = new CodeDeploymentStack(this, 'CodeDeployment', {
+      environmentName: props.environmentName,
+      componentName: cfg.componentName,
+      codeBucket: storage.codeBucket,
+    });
+    codeDeployment.addDependency(storage);
 
-		new UserProfileStack(this, 'UserProfile', {
-			environmentName: props.environmentName,
-			componentName: cfg.componentName,
-			studioDomain: sagemakerStudio.domain,
-			securityGroup: network.sagemakerStudioSg,
-		});
-	}
+    const sagemakerStudio = new SagemakerStudioStack(this, 'SagemakerStudio', {
+      environmentName: props.environmentName,
+      componentName: cfg.componentName,
+      vpc: network.vpc,
+      securityGroup: network.sagemakerStudioSg,
+      dataBucket: storage.rawDataBucket,
+      dataKey: storage.kmsKey,
+      executionRole: iam.sagemakerExecutionRole,
+      private: cfg.private,
+    });
+
+    new UserProfileStack(this, 'UserProfile', {
+      environmentName: props.environmentName,
+      componentName: cfg.componentName,
+      studioDomain: sagemakerStudio.domain,
+      securityGroup: network.sagemakerStudioSg,
+    });
+
+    const experimentPipeline = new ExperimentPipelineStack(
+      this,
+      'ExperimentPipeline',
+      {
+        environmentName: props.environmentName,
+        componentName: cfg.componentName,
+        vpc: network.vpc,
+        securityGroup: network.sagemakerStudioSg,
+        rawDataBucket: storage.rawDataBucket,
+        processedDataBucket: storage.processedDataBucket,
+        codeBucket: storage.codeBucket,
+        dataKey: storage.kmsKey,
+        pipelineRole: iam.pipelineRole,
+      }
+    );
+    experimentPipeline.addDependency(lakeFormation);
+  }
 }
