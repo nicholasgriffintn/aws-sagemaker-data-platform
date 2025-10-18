@@ -3,7 +3,7 @@ import { Construct } from 'constructs';
 
 import { SageMakerPipelineProps, PipelineScriptLocations } from '../types';
 
-export class ExperimentSageMakerPipeline extends Construct {
+export class SageMakerPipeline extends Construct {
   public readonly pipeline: CfnPipeline;
 
   constructor(scope: Construct, id: string, props: SageMakerPipelineProps) {

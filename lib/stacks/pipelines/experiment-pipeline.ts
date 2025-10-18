@@ -8,9 +8,9 @@ import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
 import { PipelineScriptLocations } from './types';
-import { ExperimentDataIngestion } from './constructs/data-ingestion';
-import { ExperimentEndpoint } from './constructs/endpoint';
-import { ExperimentSageMakerPipeline } from './constructs/sagemaker-pipeline';
+import { DataIngestion } from './constructs/data-ingestion';
+import { Endpoint } from './constructs/endpoint';
+import { SageMakerPipeline } from './constructs/sagemaker-pipeline';
 import { getSageMakerImageUri } from '../pipelines/utils/sagemaker';
 
 export interface ExperimentPipelineStackProps extends StackProps {
@@ -48,16 +48,12 @@ export class ExperimentPipelineStack extends Stack {
     const pipelineStackName = `${props.componentName}-${props.environmentName}-${pipelineNameSuffix}`;
     const endpointStackName = `${props.componentName}-${props.environmentName}-experiment-endpoint`;
 
-    const dataIngestion = new ExperimentDataIngestion(
-      this,
-      'ExperimentDataIngestion',
-      {
-        componentName: props.componentName,
-        environmentName: props.environmentName,
-        rawDataBucket: props.rawDataBucket,
-        dataKey: props.dataKey,
-      }
-    );
+    const dataIngestion = new DataIngestion(this, 'ExperimentDataIngestion', {
+      componentName: props.componentName,
+      environmentName: props.environmentName,
+      rawDataBucket: props.rawDataBucket,
+      dataKey: props.dataKey,
+    });
     this.dataIngestionLambda = dataIngestion.lambda;
 
     props.codeBucket.grantRead(props.pipelineRole);
@@ -71,41 +67,39 @@ export class ExperimentPipelineStack extends Stack {
       inference: 'sagemaker-scripts/experiment-pipeline/inference/inference.py',
     };
 
-    const pipeline = new ExperimentSageMakerPipeline(
-      this,
-      'ExperimentTrainingPipeline',
-      {
-        componentName: props.componentName,
-        environmentName: props.environmentName,
-        rawDataBucket: props.rawDataBucket,
-        processedDataBucket: props.processedDataBucket,
-        codeBucket: props.codeBucket,
-        pipelineRole: props.pipelineRole,
-        pipelineName,
-        vpc: props.vpc,
-        securityGroup: props.securityGroup,
-        pipelineNameSuffix,
-        sagemakerImageUri,
-        primaryInstanceType: this.imageId,
-        secondaryInstanceType: this.secondaryImageId,
-        scriptLocations,
-      }
-    );
+    const pipeline = new SageMakerPipeline(this, 'ExperimentTrainingPipeline', {
+      componentName: props.componentName,
+      environmentName: props.environmentName,
+      rawDataBucket: props.rawDataBucket,
+      processedDataBucket: props.processedDataBucket,
+      codeBucket: props.codeBucket,
+      pipelineRole: props.pipelineRole,
+      pipelineName,
+      vpc: props.vpc,
+      securityGroup: props.securityGroup,
+      pipelineNameSuffix,
+      sagemakerImageUri,
+      primaryInstanceType: this.imageId,
+      secondaryInstanceType: this.secondaryImageId,
+      scriptLocations,
+    });
 
     this.pipeline = pipeline.pipeline;
 
-    const endpoint = new ExperimentEndpoint(this, 'ExperimentEndpoint', {
+    const endpoint = new Endpoint(this, 'ExperimentEndpoint', {
       componentName: props.componentName,
       environmentName: props.environmentName,
       processedDataBucket: props.processedDataBucket,
       codeBucket: props.codeBucket,
       pipelineRole: props.pipelineRole,
+      pipelineName,
       vpc: props.vpc,
       securityGroup: props.securityGroup,
       sagemakerImageUri,
       kmsKeyId: props.dataKey.keyId,
       primaryInstanceType: this.imageId,
       monitoring: {
+        pipelineName,
         invocationTargetValue: 100,
       },
     });

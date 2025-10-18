@@ -7,61 +7,65 @@ import { Code, Function as LambdaFunction, Runtime } from "aws-cdk-lib/aws-lambd
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 
-export interface ExperimentDataIngestionProps {
-	componentName: string;
-	environmentName: string;
-	rawDataBucket: Bucket;
-	dataKey: Key;
-	schedule?: Schedule;
-	timeout?: Duration;
-	memorySize?: number;
-	defaultDatasetType?: string;
+export interface DataIngestionProps {
+  componentName: string;
+  environmentName: string;
+  rawDataBucket: Bucket;
+  dataKey: Key;
+  schedule?: Schedule;
+  timeout?: Duration;
+  memorySize?: number;
+  defaultDatasetType?: string;
 }
 
-export class ExperimentDataIngestion extends Construct {
-	public readonly lambda: LambdaFunction;
+export class DataIngestion extends Construct {
+  public readonly lambda: LambdaFunction;
 
-	constructor(scope: Construct, id: string, props: ExperimentDataIngestionProps) {
-		super(scope, id);
+  constructor(scope: Construct, id: string, props: DataIngestionProps) {
+    super(scope, id);
 
-		const lambdaRole = new Role(this, "DataIngestionLambdaRole", {
-			assumedBy: new ServicePrincipal("lambda.amazonaws.com"),
-			managedPolicies: [
-				ManagedPolicy.fromAwsManagedPolicyName("service-role/AWSLambdaVPCExecutionRole"),
-			],
-		});
+    const lambdaRole = new Role(this, 'DataIngestionLambdaRole', {
+      assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        ManagedPolicy.fromAwsManagedPolicyName(
+          'service-role/AWSLambdaVPCExecutionRole'
+        ),
+      ],
+    });
 
-		props.rawDataBucket.grantWrite(lambdaRole);
-		props.dataKey.grantEncryptDecrypt(lambdaRole);
+    props.rawDataBucket.grantWrite(lambdaRole);
+    props.dataKey.grantEncryptDecrypt(lambdaRole);
 
-		lambdaRole.addToPolicy(new PolicyStatement({
-			actions: [
-				"logs:CreateLogGroup",
-				"logs:CreateLogStream",
-				"logs:PutLogEvents",
-			],
-			resources: ["*"],
-		}));
+    lambdaRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'logs:CreateLogGroup',
+          'logs:CreateLogStream',
+          'logs:PutLogEvents',
+        ],
+        resources: ['*'],
+      })
+    );
 
-		this.lambda = new LambdaFunction(this, "DataIngestionLambda", {
-			functionName: `${props.componentName}-${props.environmentName}-data-ingestion`,
-			runtime: Runtime.PYTHON_3_13,
-			handler: "index.handler",
-			code: Code.fromAsset("lambdas/data-ingestion"),
-			role: lambdaRole,
-			timeout: props.timeout ?? Duration.minutes(15),
-			memorySize: props.memorySize ?? 1024,
-			environment: {
-				RAW_DATA_BUCKET: props.rawDataBucket.bucketName,
-				KMS_KEY_ID: props.dataKey.keyId,
-				DEFAULT_DATASET_TYPE: props.defaultDatasetType ?? "amazon-reviews",
-			},
-		});
+    this.lambda = new LambdaFunction(this, 'DataIngestionLambda', {
+      functionName: `${props.componentName}-${props.environmentName}-data-ingestion`,
+      runtime: Runtime.PYTHON_3_13,
+      handler: 'index.handler',
+      code: Code.fromAsset('lambdas/data-ingestion'),
+      role: lambdaRole,
+      timeout: props.timeout ?? Duration.minutes(15),
+      memorySize: props.memorySize ?? 1024,
+      environment: {
+        RAW_DATA_BUCKET: props.rawDataBucket.bucketName,
+        KMS_KEY_ID: props.dataKey.keyId,
+        DEFAULT_DATASET_TYPE: props.defaultDatasetType ?? 'amazon-reviews',
+      },
+    });
 
-		const dataIngestionRule = new Rule(this, "DataIngestionSchedule", {
-			schedule: props.schedule ?? Schedule.cron({ hour: "2", minute: "0" }),
-		});
+    const dataIngestionRule = new Rule(this, 'DataIngestionSchedule', {
+      schedule: props.schedule ?? Schedule.cron({ hour: '2', minute: '0' }),
+    });
 
-		dataIngestionRule.addTarget(new LambdaTarget(this.lambda));
-	}
+    dataIngestionRule.addTarget(new LambdaTarget(this.lambda));
+  }
 }
