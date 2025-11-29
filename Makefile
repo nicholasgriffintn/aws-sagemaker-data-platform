@@ -61,6 +61,9 @@ install:
 build:
 	pnpm run build
 
+diff:
+	pnpm run diff
+
 clean:
 	rm -rf cdk.out dist node_modules
 	rm -rf data-generator/output

@@ -41,76 +41,9 @@ A modular AWS SageMaker platform that provides shared infrastructure for multipl
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-## Prerequisites
+## Setup
 
-- **Node.js** >= 22.10.0
-- **pnpm** (package manager)
-- **Python** >= 3.10
-- **AWS CLI** configured with appropriate credentials
-- **AWS CDK** CLI (`pnpm add -g aws-cdk`)
-
-## Quick Start
-
-### 1. Install Dependencies
-
-```bash
-make install
-```
-
-Or manually:
-
-```bash
-pnpm install
-pip install -r data-generator/requirements.txt
-pip install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
-pip install -r sagemaker-scripts/recommender-pipeline/requirements.txt
-```
-
-### 2. Configure Environment
-
-Edit `config/environments/dev.json` with your AWS account details:
-
-```json
-{
-  "componentName": "aws-ml-platform",
-  "awsAccount": "YOUR_ACCOUNT_ID",
-  "awsRegion": "eu-west-1",
-  "private": false
-}
-```
-
-| Property | Description |
-|----------|-------------|
-| `componentName` | Prefix for all resource names |
-| `awsAccount` | Your AWS account ID |
-| `awsRegion` | Target AWS region |
-| `private` | `true` for private subnets only (production), `false` for public access (development) |
-
-### 3. Build and Deploy
-
-```bash
-# Build TypeScript
-pnpm run build
-
-# Preview changes
-pnpm run diff
-
-# Deploy all stacks
-pnpm run deploy
-```
-
-Or deploy specific stacks:
-
-```bash
-pnpm run cdk deploy aws-ml-platform-Network-dev aws-ml-platform-Storage-dev
-```
-
-### 4. Deploy to Production
-
-```bash
-pnpm run cdk synth -c env=prod
-pnpm run cdk deploy -c env=prod --all
-```
+See [SETUP.md](SETUP.md) for a full end-to-end deployment guide.
 
 ## Data Generation
 
