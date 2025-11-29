@@ -16,7 +16,7 @@ If you don't have any of these, please install them.
 
 ```bash
 # Configure AWS CLI with your credentials
-aws configure
+aws login
 
 # Verify you're authenticated
 aws sts get-caller-identity

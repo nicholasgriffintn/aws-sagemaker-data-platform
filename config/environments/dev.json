@@ -1,4 +1,5 @@
 {
+    "_comment": "IMPORTANT: Replace the account ID with your actual AWS account ID before deploying to development",
     "componentName": "aws-ml-platform",
     "awsAccount": "651706750584",
     "awsRegion": "eu-west-1",
