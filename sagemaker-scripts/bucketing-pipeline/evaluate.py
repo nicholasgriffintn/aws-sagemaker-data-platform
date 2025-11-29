@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
+"""
+Evaluation script for user bucketing pipeline.
+
+Evaluates trained model on test set and generates approval recommendation.
+"""
 
 import argparse
 import os
 import pandas as pd
 import numpy as np
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, confusion_matrix, classification_report
+from sklearn.metrics import (
+    accuracy_score, precision_score, recall_score, 
+    f1_score, roc_auc_score, confusion_matrix, classification_report
+)
 import joblib
 import json
 import logging
@@ -12,11 +20,15 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def evaluate_model():
-    """
-    Evaluate trained user bucketing model on test set
-    """
-    
+# Model approval thresholds
+MIN_ACCURACY = 0.75
+MIN_PRECISION = 0.70
+MIN_RECALL = 0.65
+MIN_AUC = 0.80
+
+
+def main():
+    """Evaluate trained user bucketing model on test set."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-path', type=str, default='/opt/ml/processing/model')
     parser.add_argument('--test-path', type=str, default='/opt/ml/processing/test')
@@ -26,6 +38,7 @@ def evaluate_model():
     
     logger.info("Starting model evaluation...")
     
+    # Load model
     model_file = os.path.join(args.model_path, 'model.pkl')
     if not os.path.exists(model_file):
         model_files = [f for f in os.listdir(args.model_path) if f.endswith('.pkl') and 'model' in f]
@@ -37,6 +50,7 @@ def evaluate_model():
     model = joblib.load(model_file)
     logger.info(f"Loaded model from {model_file}")
     
+    # Load test data
     test_df = pd.read_csv(os.path.join(args.test_path, 'test.csv'))
     X_test = test_df.drop('target', axis=1)
     y_test = test_df['target']
@@ -44,9 +58,11 @@ def evaluate_model():
     logger.info(f"Test data shape: {X_test.shape}")
     logger.info(f"Test target distribution: {y_test.value_counts().to_dict()}")
     
+    # Make predictions
     y_pred = model.predict(X_test)
     y_pred_proba = model.predict_proba(X_test)[:, 1]
     
+    # Calculate metrics
     accuracy = accuracy_score(y_test, y_pred)
     precision = precision_score(y_test, y_pred)
     recall = recall_score(y_test, y_pred)
@@ -54,12 +70,9 @@ def evaluate_model():
     auc = roc_auc_score(y_test, y_pred_proba)
     
     cm = confusion_matrix(y_test, y_pred)
-    
     class_report = classification_report(y_test, y_pred, output_dict=True)
     
-    high_value_precision = precision
-    high_value_recall = recall
-    
+    # Business metrics
     total_users = len(y_test)
     predicted_high_value = np.sum(y_pred)
     actual_high_value = np.sum(y_test)
@@ -83,8 +96,8 @@ def evaluate_model():
             'correctly_identified_high_value': int(correctly_identified_high_value),
             'bucketing_efficiency': float(bucketing_efficiency),
             'coverage': float(coverage),
-            'high_value_precision': float(high_value_precision),
-            'high_value_recall': float(high_value_recall)
+            'high_value_precision': float(precision),
+            'high_value_recall': float(recall)
         }
     }
     
@@ -101,16 +114,12 @@ def evaluate_model():
     with open(os.path.join(args.evaluation_path, 'evaluation_metrics.json'), 'w') as f:
         json.dump(evaluation_metrics, f, indent=2)
     
-    min_accuracy = 0.75
-    min_precision = 0.70
-    min_recall = 0.65
-    min_auc = 0.80
-    
+    # Model approval decision
     approval_criteria = {
-        'accuracy_pass': accuracy >= min_accuracy,
-        'precision_pass': precision >= min_precision,
-        'recall_pass': recall >= min_recall,
-        'auc_pass': auc >= min_auc
+        'accuracy_pass': accuracy >= MIN_ACCURACY,
+        'precision_pass': precision >= MIN_PRECISION,
+        'recall_pass': recall >= MIN_RECALL,
+        'auc_pass': auc >= MIN_AUC
     }
     
     all_criteria_met = all(approval_criteria.values())
@@ -119,10 +128,10 @@ def evaluate_model():
         'approve_model': all_criteria_met,
         'approval_criteria': approval_criteria,
         'thresholds': {
-            'min_accuracy': min_accuracy,
-            'min_precision': min_precision,
-            'min_recall': min_recall,
-            'min_auc': min_auc
+            'min_accuracy': MIN_ACCURACY,
+            'min_precision': MIN_PRECISION,
+            'min_recall': MIN_RECALL,
+            'min_auc': MIN_AUC
         },
         'recommendation_reason': 'All criteria met' if all_criteria_met else 'Some criteria not met'
     }
@@ -131,7 +140,9 @@ def evaluate_model():
         json.dump(recommendation, f, indent=2)
     
     logger.info(f"Model approval recommendation: {'APPROVE' if all_criteria_met else 'REJECT'}")
-    logger.info("Model evaluation completed successfully!")
+    logger.info("EVALUATION COMPLETE")
+
 
 if __name__ == '__main__':
-    evaluate_model()
+    main()
+

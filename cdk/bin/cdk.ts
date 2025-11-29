@@ -158,7 +158,7 @@ new UserProfileStack(app, `${cfg.componentName}-UserProfile-${envName}`, {
   securityGroup: network.sagemakerStudioSg,
 });
 
-// Experiment Bucketing Pipeline
+// User Bucketing Pipeline
 // Uses SageMaker pipelines for preprocessing, training, and inference
 const experimentPipeline = new ExperimentPipelineStack(
   app,
@@ -180,7 +180,8 @@ experimentPipeline.addDependency(lakeFormation);
 experimentPipeline.addDependency(codeDeployment);
 
 // ML Experiment Recommender Pipeline
-// Uses Glue ETL, SageMaker endpoint, and API Gateway for recommendations
+// Uses SageMaker pipelines for preprocessing, training, and inference
+// Includes API Gateway for serving recommendations
 const recommenderPipeline = new RecommenderPipelineStack(
   app,
   `${cfg.componentName}-RecommenderPipeline-${envName}`,
@@ -188,11 +189,14 @@ const recommenderPipeline = new RecommenderPipelineStack(
     env,
     environmentName: envName,
     componentName: cfg.componentName,
+    vpc: network.vpc,
+    securityGroup: network.sagemakerStudioSg,
+    rawDataBucket: storage.rawDataBucket,
     processedDataBucket: storage.processedDataBucket,
-    sagemakerExecutionRole: iam.sagemakerExecutionRole,
+    codeBucket: storage.codeBucket,
+    dataKey: storage.kmsKey,
+    pipelineRole: iam.pipelineRole,
     lambdaExecutionRole: iam.pipelineRole,
-    glueRole: iam.pipelineRole,
-    databaseName: glue.processedDatabaseName,
   }
 );
 recommenderPipeline.addDependency(lakeFormation);

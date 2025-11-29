@@ -2,13 +2,11 @@ import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
 import { SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
 import { Role } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
-import { Function as LambdaFunction } from 'aws-cdk-lib/aws-lambda';
 import { CfnEndpoint, CfnPipeline } from 'aws-cdk-lib/aws-sagemaker';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 
 import { PipelineScriptLocations } from './types';
-import { DataIngestion } from './constructs/data-ingestion';
 import { Endpoint } from './constructs/endpoint';
 import { SageMakerPipeline } from './constructs/sagemaker-pipeline';
 import { getSageMakerImageUri } from '../pipelines/utils/sagemaker';
@@ -25,9 +23,18 @@ export interface ExperimentPipelineStackProps extends StackProps {
   readonly pipelineRole: Role;
 }
 
+/**
+ * User Bucketing Pipeline Stack
+ *
+ * This stack creates the user bucketing ML pipeline including:
+ * - SageMaker Pipeline for preprocessing, training, and evaluation
+ * - SageMaker Endpoint for real-time inference
+ * - Monitoring and alerts
+ *
+ * Data is generated using the data-generator tool and uploaded to S3.
+ */
 export class ExperimentPipelineStack extends Stack {
   public readonly pipeline: CfnPipeline;
-  public readonly dataIngestionLambda: LambdaFunction;
   public readonly experimentEndpoint: CfnEndpoint;
   public readonly imageId: string;
   public readonly secondaryImageId: string;
@@ -43,31 +50,21 @@ export class ExperimentPipelineStack extends Stack {
     this.secondaryImageId = 'ml.m5.xlarge';
 
     const sagemakerImageUri = getSageMakerImageUri(this.region);
-    const pipelineName = 'experiment';
-    const pipelineNameSuffix = `${pipelineName}-bucketing-pipeline`;
+    const pipelineName = 'bucketing';
+    const pipelineNameSuffix = `${pipelineName}-pipeline`;
     const pipelineStackName = `${props.componentName}-${props.environmentName}-${pipelineNameSuffix}`;
-    const endpointStackName = `${props.componentName}-${props.environmentName}-experiment-endpoint`;
-
-    const dataIngestion = new DataIngestion(this, 'ExperimentDataIngestion', {
-      componentName: props.componentName,
-      environmentName: props.environmentName,
-      rawDataBucket: props.rawDataBucket,
-      dataKey: props.dataKey,
-    });
-    this.dataIngestionLambda = dataIngestion.lambda;
+    const endpointStackName = `${props.componentName}-${props.environmentName}-bucketing-endpoint`;
 
     props.codeBucket.grantRead(props.pipelineRole);
 
     const scriptLocations: PipelineScriptLocations = {
-      preprocessing:
-        'sagemaker-scripts/experiment-pipeline/preprocessing/preprocessing.py',
-      training: 'sagemaker-scripts/experiment-pipeline/training/train.py',
-      evaluation:
-        'sagemaker-scripts/experiment-pipeline/evaluation/evaluate.py',
-      inference: 'sagemaker-scripts/experiment-pipeline/inference/inference.py',
+      preprocessing: 'sagemaker-scripts/bucketing-pipeline/preprocess.py',
+      training: 'sagemaker-scripts/bucketing-pipeline/train.py',
+      evaluation: 'sagemaker-scripts/bucketing-pipeline/evaluate.py',
+      inference: 'sagemaker-scripts/bucketing-pipeline/inference.py',
     };
 
-    const pipeline = new SageMakerPipeline(this, 'ExperimentTrainingPipeline', {
+    const pipeline = new SageMakerPipeline(this, 'BucketingTrainingPipeline', {
       componentName: props.componentName,
       environmentName: props.environmentName,
       rawDataBucket: props.rawDataBucket,
@@ -86,7 +83,7 @@ export class ExperimentPipelineStack extends Stack {
 
     this.pipeline = pipeline.pipeline;
 
-    const endpoint = new Endpoint(this, 'ExperimentEndpoint', {
+    const endpoint = new Endpoint(this, 'BucketingEndpoint', {
       componentName: props.componentName,
       environmentName: props.environmentName,
       processedDataBucket: props.processedDataBucket,
@@ -96,8 +93,7 @@ export class ExperimentPipelineStack extends Stack {
       vpc: props.vpc,
       securityGroup: props.securityGroup,
       sagemakerImageUri,
-      modelInterfaceScript:
-        'sagemaker-scripts/experiment-pipeline/inference/model_interface.py',
+      modelInterfaceScript: 'sagemaker-scripts/bucketing-pipeline/inference.py',
       kmsKeyId: props.dataKey.keyId,
       primaryInstanceType: this.imageId,
       monitoring: {
@@ -113,7 +109,7 @@ export class ExperimentPipelineStack extends Stack {
       environmentName: props.environmentName,
       pipelineName: pipelineStackName,
       endpointName: endpointStackName,
-      dataCaptureUri: `s3://${props.processedDataBucket.bucketName}/experiment-pipeline/data-capture/`,
+      dataCaptureUri: `s3://${props.processedDataBucket.bucketName}/bucketing-pipeline/data-capture/`,
       alertsTopicArn: endpoint.resources.alertsTopic.topicArn,
     });
   }
@@ -128,27 +124,22 @@ export class ExperimentPipelineStack extends Stack {
   }) {
     new CfnOutput(this, `${params.componentName}-pipeline-name`, {
       value: params.pipelineName,
-      description: 'Name of the experiment bucketing pipeline',
+      description: 'Name of the user bucketing pipeline',
     });
 
     new CfnOutput(this, `${params.componentName}-endpoint-name`, {
       value: params.endpointName,
-      description: 'Name of the experiment bucketing inference endpoint',
+      description: 'Name of the user bucketing inference endpoint',
     });
 
     new CfnOutput(this, `${params.componentName}-alerts-topic-arn`, {
       value: params.alertsTopicArn,
-      description: 'ARN of the SNS topic for experiment pipeline alerts',
+      description: 'ARN of the SNS topic for bucketing pipeline alerts',
     });
 
     new CfnOutput(this, `${params.componentName}-data-capture-uri`, {
       value: params.dataCaptureUri,
       description: 'S3 URI where endpoint data capture is stored',
-    });
-
-    new CfnOutput(this, `${params.componentName}-data-ingestion-lambda-name`, {
-      value: this.dataIngestionLambda.functionName,
-      description: 'Name of the data ingestion Lambda function',
     });
   }
 }

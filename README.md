@@ -4,19 +4,21 @@ A modular AWS SageMaker platform that provides shared infrastructure for multipl
 
 ## Overview
 
-- **Experiment Bucketing Pipeline** - Experiment bucketing with preprocessing, training, and inference
-- **ML Experiment Recommender** - Recommendation engine for suggesting experiments using historical uplift data
+- **User Bucketing Pipeline** - Classifies users for experiment assignment using SageMaker pipelines
+- **ML Recommender Pipeline** - Recommendation engine for suggesting experiments using historical uplift data
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                       ML Pipeline Layer                          │
 │  ┌─────────────────────────┐    ┌─────────────────────────────┐ │
-│  │  Experiment Bucketing   │    │   Recommender Pipeline      │ │
-│  │  ├─ Data Ingestion λ    │    │   ├─ Glue ETL Job           │ │
-│  │  ├─ SageMaker Pipeline  │    │   ├─ Glue Crawlers          │ │
-│  │  ├─ Training Job        │    │   ├─ SageMaker Endpoint     │ │
-│  │  └─ Inference Endpoint  │    │   └─ API Gateway + Lambda   │ │
-│  └─────────────────────────┘    └─────────────────────────────┘ │
+│  │   Bucketing Pipeline    │    │   Recommender Pipeline      │ │
+│  │  ├─ SageMaker Pipeline  │    │   ├─ SageMaker Pipeline     │ │
+│  │  ├─ Preprocessing       │    │   ├─ Preprocessing          │ │
+│  │  ├─ Training Job        │    │   ├─ Training Job           │ │
+│  │  ├─ Evaluation          │    │   ├─ Evaluation             │ │
+│  │  └─ Inference Endpoint  │    │   ├─ Inference Endpoint     │ │
+│  └─────────────────────────┘    │   └─ API Gateway + Lambda   │ │
+│                                 └─────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -46,16 +48,16 @@ A modular AWS SageMaker platform that provides shared infrastructure for multipl
 ### 1. Install Dependencies
 
 ```bash
-pnpm install
-pip install -r glue/requirements.txt
-pip install -r sagemaker-scripts/experiment-pipeline/requirements.txt
-pip install -r sagemaker-scripts/recommender-pipeline/requirements.txt
+make install
 ```
 
-Or use the Makefile:
+Or manually:
 
 ```bash
-make install
+pnpm install
+pip install -r data-generator/requirements.txt
+pip install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
+pip install -r sagemaker-scripts/recommender-pipeline/requirements.txt
 ```
 
 ### 2. Configure Environment
@@ -104,24 +106,49 @@ pnpm run cdk synth -c env=prod
 pnpm run cdk deploy -c env=prod --all
 ```
 
+## Data Generation
+
+Both pipelines use the unified `data-generator` tool:
+
+```bash
+# Generate all data locally
+make generate-data
+
+# Generate specific data types
+make generate-experiment   # Experiment metadata for recommender
+make generate-bucketing    # User data for bucketing
+
+# Generate and upload to S3
+make upload-data BUCKET=your-bucket-name
+```
+
+Or use the CLI directly:
+
+```bash
+cd data-generator
+python main.py all                              # Generate both datasets
+python main.py experiment --records 100000     # Generate 100k experiments
+python main.py bucketing --records 50000       # Generate 50k users
+python main.py all --upload --bucket my-bucket # Generate and upload to S3
+```
+
 ## Usage
 
-### Experiment Bucketing Pipeline
+### User Bucketing Pipeline
 
-1. **Ingest Data**: Upload raw experiment data via the data ingestion Lambda (scheduled daily at 2am UTC)
-2. **Run Pipeline**: SageMaker pipeline automatically runs preprocessing, training, and evaluation
-3. **Deploy Model**: Approved models are registered and the endpoint is updated
-4. **Make Predictions**: Call the real-time endpoint for user bucketing
+1. **Generate Data**: `make generate-bucketing` creates synthetic user data
+2. **Upload Data**: `make upload-bucketing-data BUCKET=your-bucket`
+3. **Run Pipeline**: SageMaker pipeline runs preprocessing, training, and evaluation
+4. **Deploy Model**: Approved models are registered and the endpoint is updated
+5. **Make Predictions**: Call the real-time endpoint for user bucketing
 
 ### ML Recommender Pipeline
 
-1. **Generate Data**: `make generate-data` creates synthetic experiment data
-2. **Upload Data**: `make upload-data BUCKET=your-bucket` syncs to S3
-3. **Catalog Data**: Glue crawlers run hourly to catalog raw data
-4. **Run ETL**: `make etl` runs the feature engineering job
-5. **Train Model**: `make train` preprocesses and trains locally
-6. **Deploy Model**: `make package-model && make upload-model` deploys to SageMaker
-7. **Get Recommendations**: POST to `/recommend` endpoint with a goal
+1. **Generate Data**: `make generate-experiment` creates synthetic experiment data
+2. **Upload Data**: `make upload-experiment-data BUCKET=your-bucket`
+3. **Run Pipeline**: SageMaker pipeline runs preprocessing, training, and evaluation
+4. **Deploy Model**: Approved models are registered and the endpoint is updated
+5. **Get Recommendations**: POST to `/recommend` endpoint with a goal
 
 Example API request:
 
@@ -131,14 +158,35 @@ curl -X POST https://YOUR_API_GATEWAY_URL/recommend \
   -d '{"goal": "increase live news at 18:00 for 16-25s", "top_n": 5}'
 ```
 
+## Local Training
+
+Train models locally for development:
+
+```bash
+# Train recommender model
+make train-recommender
+
+# Train bucketing model
+make train-bucketing
+```
+
 ## Adding New ML Pipelines
 
 To add a new ML pipeline:
 
-1. Create a new stack in `cdk/lib/stacks/pipelines/your-pipeline-stack.ts`
-2. Import and instantiate it in `cdk/bin/cdk.ts` under the "ML Pipeline Layer" section
-3. Use shared infrastructure resources (storage, IAM roles, network, etc.)
-4. Add appropriate dependencies
+1. Create scripts in `sagemaker-scripts/your-pipeline/` with:
+   - `preprocess.py` - Data preprocessing
+   - `train.py` - Model training
+   - `evaluate.py` - Model evaluation and approval
+   - `inference.py` - Inference handling
+
+2. Add data generation in `data-generator/` if needed
+
+3. Create a new stack in `cdk/lib/stacks/pipelines/your-pipeline-stack.ts` using the shared constructs:
+   - `SageMakerPipeline` - Training workflow
+   - `Endpoint` - Model deployment
+
+4. Import and instantiate it in `cdk/bin/cdk.ts`
 
 Example:
 
@@ -152,10 +200,15 @@ const yourPipeline = new YourPipelineStack(
     env,
     environmentName: envName,
     componentName: cfg.componentName,
+    vpc: network.vpc,
+    securityGroup: network.sagemakerStudioSg,
+    rawDataBucket: storage.rawDataBucket,
     processedDataBucket: storage.processedDataBucket,
-    sagemakerExecutionRole: iam.sagemakerExecutionRole,
-    // ... other shared resources
+    codeBucket: storage.codeBucket,
+    dataKey: storage.kmsKey,
+    pipelineRole: iam.pipelineRole,
   }
 );
 yourPipeline.addDependency(lakeFormation);
+yourPipeline.addDependency(codeDeployment);
 ```

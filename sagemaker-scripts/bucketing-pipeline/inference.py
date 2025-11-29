@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Inference script for user bucketing pipeline.
+
+Handles real-time inference requests for user bucketing predictions.
+"""
 
 import json
 import joblib
@@ -11,10 +16,15 @@ from sklearn.pipeline import Pipeline
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+REQUIRED_FEATURES = [
+    'age', 'session_count', 'avg_session_duration', 'page_views',
+    'purchase_history', 'total_spent', 'engagement_score',
+    'historical_conversion_rate', 'gender', 'location'
+]
+
+
 def model_fn(model_dir):
-    """
-    Load model for inference - expects unified pipeline or standalone model
-    """
+    """Load model for inference."""
     try:
         model = joblib.load(os.path.join(model_dir, 'model.pkl'))
         logger.info(f"Model loaded successfully: {type(model).__name__}")
@@ -23,42 +33,30 @@ def model_fn(model_dir):
         logger.error(f"Error loading model: {str(e)}")
         raise
 
+
 def input_fn(request_body, request_content_type):
-    """
-    Parse and validate input data for inference
-    Expects raw user features, not pre-processed ones
-    """
-    if request_content_type == 'application/json':
-        input_data = json.loads(request_body)
-        
-        if isinstance(input_data, dict):
-            input_data = [input_data]
-        
-        df = pd.DataFrame(input_data)
-        
-        required_raw_features = [
-            'age', 'session_count', 'avg_session_duration', 'page_views',
-            'purchase_history', 'total_spent', 'engagement_score',
-            'historical_conversion_rate', 'gender', 'location'
-        ]
-        
-        missing_features = [f for f in required_raw_features if f not in df.columns]
-        if missing_features:
-            raise ValueError(f"Missing required features: {missing_features}")
-        
-        _validate_input_data(df)
-        
-        df = df[required_raw_features]
-        
-        return df
-        
-    else:
+    """Parse and validate input data for inference."""
+    if request_content_type != 'application/json':
         raise ValueError(f"Unsupported content type: {request_content_type}")
+    
+    input_data = json.loads(request_body)
+    
+    if isinstance(input_data, dict):
+        input_data = [input_data]
+    
+    df = pd.DataFrame(input_data)
+    
+    missing_features = [f for f in REQUIRED_FEATURES if f not in df.columns]
+    if missing_features:
+        raise ValueError(f"Missing required features: {missing_features}")
+    
+    _validate_input_data(df)
+    
+    return df[REQUIRED_FEATURES]
+
 
 def _validate_input_data(df):
-    """
-    Validate input data types and ranges
-    """
+    """Validate input data types and ranges."""
     validations = {
         'age': {'type': (int, float), 'range': (0, 120)},
         'session_count': {'type': (int, float), 'range': (0, None)},
@@ -73,33 +71,33 @@ def _validate_input_data(df):
     }
     
     for col, rules in validations.items():
-        if col in df.columns:
-            if not df[col].apply(lambda x: isinstance(x, rules['type'])).all():
-                raise ValueError(f"Invalid data type for {col}. Expected {rules['type']}")
+        if col not in df.columns:
+            continue
             
-            if 'range' in rules and rules['range'] is not None:
-                min_val, max_val = rules['range']
-                if min_val is not None and (df[col] < min_val).any():
-                    raise ValueError(f"Values in {col} below minimum {min_val}")
-                if max_val is not None and (df[col] > max_val).any():
-                    raise ValueError(f"Values in {col} above maximum {max_val}")
-            
-            if 'values' in rules and rules['values'] is not None:
-                invalid_values = df[col][~df[col].isin(rules['values'])].unique()
-                if len(invalid_values) > 0:
-                    logger.warning(f"Unknown values in {col}: {invalid_values}. Will be handled by encoder.")
+        if not df[col].apply(lambda x: isinstance(x, rules['type'])).all():
+            raise ValueError(f"Invalid data type for {col}. Expected {rules['type']}")
+        
+        if 'range' in rules and rules['range'] is not None:
+            min_val, max_val = rules['range']
+            if min_val is not None and (df[col] < min_val).any():
+                raise ValueError(f"Values in {col} below minimum {min_val}")
+            if max_val is not None and (df[col] > max_val).any():
+                raise ValueError(f"Values in {col} above maximum {max_val}")
+        
+        if 'values' in rules and rules['values'] is not None:
+            invalid_values = df[col][~df[col].isin(rules['values'])].unique()
+            if len(invalid_values) > 0:
+                logger.warning(f"Unknown values in {col}: {invalid_values}")
+
 
 def predict_fn(input_data, model):
-    """
-    Make predictions using unified pipeline or standalone model
-    """
+    """Make predictions using the model."""
     try:
-        if isinstance(model, Pipeline):
-            predictions = model.predict(input_data)
-            probabilities = model.predict_proba(input_data)
-            logger.info("Used unified pipeline for prediction")
-        else:
-            raise ValueError("Expected a Pipeline model but got standalone classifier. Check training configuration.")
+        if not isinstance(model, Pipeline):
+            raise ValueError("Expected a Pipeline model but got standalone classifier.")
+        
+        predictions = model.predict(input_data)
+        probabilities = model.predict_proba(input_data)
         
         results = []
         for i, (pred, prob) in enumerate(zip(predictions, probabilities)):
@@ -109,7 +107,7 @@ def predict_fn(input_data, model):
                 'confidence': float(prob[pred]),
                 'high_value_probability': float(prob[1]),
                 'standard_probability': float(prob[0]),
-                'experiment_assignment': assign_experiment(pred, prob[1]),
+                'experiment_assignment': _assign_experiment(pred, prob[1]),
                 'model_version': 'unified_pipeline'
             }
             results.append(result)
@@ -118,14 +116,11 @@ def predict_fn(input_data, model):
         
     except Exception as e:
         logger.error(f"Error during prediction: {str(e)}")
-        logger.error(f"Input data shape: {input_data.shape}")
-        logger.error(f"Model type: {type(model)}")
         raise
 
-def assign_experiment(prediction, high_value_prob):
-    """
-    Assign users to experiments based on bucketing prediction
-    """
+
+def _assign_experiment(prediction, high_value_prob):
+    """Assign users to experiments based on bucketing prediction."""
     if prediction == 1:  # High value user
         if high_value_prob > 0.8:
             return {
@@ -153,14 +148,13 @@ def assign_experiment(prediction, high_value_prob):
                 'priority': 'low'
             }
 
+
 def output_fn(prediction, content_type):
-    """
-    Format output
-    """
+    """Format output."""
     if content_type == 'application/json':
         return json.dumps(prediction)
-    else:
-        raise ValueError(f"Unsupported content type: {content_type}")
+    raise ValueError(f"Unsupported content type: {content_type}")
+
 
 if __name__ == '__main__':
     sample_input = {
@@ -175,11 +169,5 @@ if __name__ == '__main__':
         'gender': 'female',
         'location': 'US'
     }
-    
     print("Sample input (raw features):", json.dumps(sample_input, indent=2))
-    print("This would be processed by the unified pipeline when deployed.")
-    print("The pipeline will automatically:")
-    print("- Create engineered features (spend_per_purchase, session_efficiency)")
-    print("- Create age and spending tier buckets")
-    print("- Encode categorical variables")
-    print("- Scale all features")
+

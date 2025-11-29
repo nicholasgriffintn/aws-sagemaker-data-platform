@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+Training script for user bucketing pipeline.
+
+Trains a classification model to predict high-value users
+for experiment assignment.
+"""
 
 import argparse
 import os
@@ -15,11 +21,9 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def train_model():
-    """
-    Train user bucketing model for experiment assignment
-    """
-    
+
+def main():
+    """Train user bucketing model for experiment assignment."""
     parser = argparse.ArgumentParser()
     
     parser.add_argument('--model-dir', type=str, default=os.environ.get('SM_MODEL_DIR', '/opt/ml/model'))
@@ -47,28 +51,24 @@ def train_model():
     raw_train_path = os.path.join(args.train, 'raw_train.csv')
     raw_val_path = os.path.join(args.validation, 'raw_validation.csv')
     
-    if os.path.exists(raw_train_path) and os.path.exists(raw_val_path):
+    use_pipeline = os.path.exists(raw_train_path) and os.path.exists(raw_val_path)
+    
+    if use_pipeline:
         raw_train_df = pd.read_csv(raw_train_path)
         raw_val_df = pd.read_csv(raw_val_path)
-        
         X_train_raw = raw_train_df.drop('target', axis=1)
         X_val_raw = raw_val_df.drop('target', axis=1)
-        
         logger.info("Raw training data available for pipeline training")
-        use_pipeline = True
     else:
         logger.warning("Raw training data not found, will train on processed data")
         X_train_raw = X_train_processed
         X_val_raw = X_val_processed
-        use_pipeline = False
     
     logger.info(f"Training data shape: {X_train_processed.shape}")
     logger.info(f"Validation data shape: {X_val_processed.shape}")
     logger.info(f"Target distribution in training: {y_train.value_counts().to_dict()}")
     
-    # Note: Random Forest is used for this example, but Logistic Regression is also supported
-    # Random Forest is best used for large datasets with many features, while Logistic Regression
-    # is best used for small datasets with few features
+    # Create model
     if args.model_type == 'random_forest':
         model = RandomForestClassifier(
             n_estimators=args.n_estimators,
@@ -99,43 +99,40 @@ def train_model():
         y_pred_proba = pipeline.predict_proba(X_val_raw)[:, 1]
         
     else:
-        logger.warning("Feature transformer not found or raw data unavailable, training model on processed data")
-        logger.info("Training model...")
+        logger.warning("Feature transformer not found, training model on processed data")
         model.fit(X_train_processed, y_train)
         pipeline = model
         
         y_pred = model.predict(X_val_processed)
         y_pred_proba = model.predict_proba(X_val_processed)[:, 1]
     
+    # Evaluate
     logger.info("Evaluating model on validation set...")
     
-    accuracy = accuracy_score(y_val, y_pred)
-    precision = precision_score(y_val, y_pred)
-    recall = recall_score(y_val, y_pred)
-    f1 = f1_score(y_val, y_pred)
-    auc = roc_auc_score(y_val, y_pred_proba)
-    
     metrics = {
-        'accuracy': float(accuracy),
-        'precision': float(precision),
-        'recall': float(recall),
-        'f1_score': float(f1),
-        'auc': float(auc)
+        'accuracy': float(accuracy_score(y_val, y_pred)),
+        'precision': float(precision_score(y_val, y_pred)),
+        'recall': float(recall_score(y_val, y_pred)),
+        'f1_score': float(f1_score(y_val, y_pred)),
+        'auc': float(roc_auc_score(y_val, y_pred_proba))
     }
     
     logger.info(f"Validation metrics: {metrics}")
     
+    # Log feature importance
     if isinstance(pipeline, Pipeline):
         classifier = pipeline.named_steps['classifier']
         if hasattr(classifier, 'feature_importances_'):
             feature_names = pipeline.named_steps['preprocessing'].feature_columns
             feature_importance = dict(zip(feature_names, classifier.feature_importances_))
-            logger.info(f"Top 5 important features: {sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:5]}")
-    else:
-        if hasattr(model, 'feature_importances_'):
-            feature_importance = dict(zip(X_train_processed.columns, model.feature_importances_))
-            logger.info(f"Top 5 important features: {sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:5]}")
+            top_features = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:5]
+            logger.info(f"Top 5 important features: {top_features}")
+    elif hasattr(model, 'feature_importances_'):
+        feature_importance = dict(zip(X_train_processed.columns, model.feature_importances_))
+        top_features = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)[:5]
+        logger.info(f"Top 5 important features: {top_features}")
     
+    # Save model
     os.makedirs(args.model_dir, exist_ok=True)
     
     if isinstance(pipeline, Pipeline):
@@ -156,19 +153,17 @@ def train_model():
             'random_state': args.random_state
         },
         'feature_names': list(X_train_processed.columns),
-        'target_classes': list(model.classes_) if hasattr(model, 'classes_') else list(pipeline.named_steps['classifier'].classes_),
         'training_samples': len(X_train_processed),
         'validation_samples': len(X_val_processed)
     }
-    
-    if hasattr(model, 'feature_importances_'):
-        metadata['feature_importance'] = feature_importance
     
     with open(os.path.join(args.model_dir, 'metadata.json'), 'w') as f:
         json.dump(metadata, f, indent=2)
     
     logger.info(f"Model saved to {args.model_dir}")
-    logger.info("Training completed successfully!")
+    logger.info("TRAINING COMPLETE")
+
 
 if __name__ == '__main__':
-    train_model()
+    main()
+

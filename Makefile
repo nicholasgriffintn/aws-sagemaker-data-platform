@@ -1,6 +1,6 @@
 # Common operations for development and deployment
 
-.PHONY: install build deploy destroy generate-data upload-data etl train package-model upload-model update-endpoint recommend clean help
+.PHONY: install build deploy destroy generate-data upload-data train package-model upload-model update-endpoint recommend clean help
 
 # ---- Configuration ----
 BUCKET ?= aws-ml-platform-dev-processed-data-bucket
@@ -21,16 +21,17 @@ help:
 	@echo "  make deploy           Deploy all stacks to AWS"
 	@echo "  make destroy          Destroy all stacks from AWS"
 	@echo ""
-	@echo "Data & ETL:"
-	@echo "  make generate-data    Generate synthetic experiment data"
-	@echo "  make upload-data      Upload generated data to S3"
-	@echo "  make etl              Run the Glue ETL job"
+	@echo "Data Generation:"
+	@echo "  make generate-data           Generate all synthetic data"
+	@echo "  make generate-experiment     Generate experiment data (recommender)"
+	@echo "  make generate-bucketing      Generate user bucketing data"
+	@echo "  make upload-data             Upload all generated data to S3"
 	@echo ""
 	@echo "Model Training:"
-	@echo "  make train            Preprocess and train model locally"
-	@echo "  make package-model    Package model artifacts for SageMaker"
-	@echo "  make upload-model     Upload model to S3"
-	@echo "  make update-endpoint  Update SageMaker endpoint with new model"
+	@echo "  make train-recommender   Train recommender model locally"
+	@echo "  make train-bucketing     Train bucketing model locally"
+	@echo "  make package-model       Package model artifacts for SageMaker"
+	@echo "  make upload-model        Upload model to S3"
 	@echo ""
 	@echo "Recommender API:"
 	@echo "  make recommend        Test the recommender API"
@@ -43,10 +44,10 @@ help:
 # ---- Basic Setup ----
 install:
 	pnpm install
+	pip install -r data-generator/requirements.txt
 	pip install -r glue/requirements.txt
-	pip install -r sagemaker-scripts/experiment-pipeline/requirements.txt
+	pip install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
 	pip install -r sagemaker-scripts/recommender-pipeline/requirements.txt
-	pip install -r lambdas/data-ingestion/requirements.txt
 	pip install -r lambdas/recommender/requirements.txt
 
 build:
@@ -54,6 +55,7 @@ build:
 
 clean:
 	rm -rf cdk.out dist node_modules
+	rm -rf data-generator/output
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 
@@ -65,28 +67,51 @@ deploy:
 destroy:
 	pnpm run cdk destroy -c env=$(ENVIRONMENT) --all --force
 
-# ---- Synthetic Data ----
+# ---- Data Generation ----
 generate-data:
-	python data-generator/generate_data.py
+	cd data-generator && python main.py all
+
+generate-experiment:
+	cd data-generator && python main.py experiment
+
+generate-bucketing:
+	cd data-generator && python main.py bucketing
 
 upload-data:
 	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
-	aws s3 sync output/raw/experiments s3://$(BUCKET)/raw/experiments
+	cd data-generator && python main.py all --upload --bucket $(BUCKET)
 
-# ---- Glue ETL ----
-etl:
-	aws glue start-job-run --job-name aws-ml-platform-$(ENVIRONMENT)-ml-experiment-feature-etl
+upload-experiment-data:
+	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
+	cd data-generator && python main.py experiment --upload --bucket $(BUCKET)
+
+upload-bucketing-data:
+	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
+	cd data-generator && python main.py bucketing --upload --bucket $(BUCKET)
 
 # ---- Training ----
-train:
-	@echo "Preprocessing data..."
+train-recommender:
+	@echo "Preprocessing recommender data..."
 	python sagemaker-scripts/recommender-pipeline/preprocess.py \
-		--input_path s3://$(BUCKET)/processed/experiments_ml/features \
+		--input_path data-generator/output/raw/experiments \
 		--output_path sagemaker-scripts/recommender-pipeline/processed
-	@echo "Training model..."
+	@echo "Training recommender model..."
 	python sagemaker-scripts/recommender-pipeline/train.py \
 		--train_path sagemaker-scripts/recommender-pipeline/processed \
 		--model_dir sagemaker-scripts/recommender-pipeline/
+
+train-bucketing:
+	@echo "Preprocessing bucketing data..."
+	python sagemaker-scripts/bucketing-pipeline/preprocess.py \
+		--input-data data-generator/output/raw/bucketing \
+		--train-data sagemaker-scripts/bucketing-pipeline/processed/train \
+		--validation-data sagemaker-scripts/bucketing-pipeline/processed/validation \
+		--test-data sagemaker-scripts/bucketing-pipeline/processed/test
+	@echo "Training bucketing model..."
+	python sagemaker-scripts/bucketing-pipeline/train.py \
+		--train sagemaker-scripts/bucketing-pipeline/processed/train \
+		--validation sagemaker-scripts/bucketing-pipeline/processed/validation \
+		--model-dir sagemaker-scripts/bucketing-pipeline/
 
 package-model:
 	cd sagemaker-scripts/recommender-pipeline && \
