@@ -45,13 +45,18 @@ help:
 install:
 	pnpm install
 	cd frontend && pnpm install
-	pip3 install -e shared
-	pip3 install -r data-generator/requirements.txt
-	pip3 install -r glue/requirements.txt
-	pip3 install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
-	pip3 install -r sagemaker-scripts/recommender-pipeline/requirements.txt
-	pip3 install -r lambdas/bucketing/requirements.txt
-	pip3 install -r lambdas/recommender/requirements.txt
+	python3 -m venv .venv
+	.venv/bin/pip install --upgrade pip
+	.venv/bin/pip install -e shared
+	.venv/bin/pip install -r data-generator/requirements.txt
+	.venv/bin/pip install -r glue/requirements.txt
+	.venv/bin/pip install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
+	.venv/bin/pip install -r sagemaker-scripts/recommender-pipeline/requirements.txt
+	.venv/bin/pip install -r lambdas/bucketing/requirements.txt
+	.venv/bin/pip install -r lambdas/recommender/requirements.txt
+	@echo ""
+	@echo "Python virtual environment created at .venv"
+	@echo "Activate it with: source .venv/bin/activate"
 
 build:
 	pnpm run build
@@ -60,7 +65,7 @@ diff:
 	pnpm run diff
 
 clean:
-	rm -rf cdk.out dist node_modules
+	rm -rf cdk.out dist node_modules .venv
 	rm -rf data-generator/output
 	rm -rf frontend/node_modules frontend/.next frontend/out
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
@@ -75,45 +80,45 @@ destroy:
 	pnpm run cdk destroy -c env=$(ENVIRONMENT) --all --force
 
 generate-data:
-	cd data-generator && python main.py all
+	cd data-generator && ../.venv/bin/python main.py all
 
 generate-experiment:
-	cd data-generator && python main.py experiment
+	cd data-generator && ../.venv/bin/python main.py experiment
 
 generate-bucketing:
-	cd data-generator && python main.py bucketing
+	cd data-generator && ../.venv/bin/python main.py bucketing
 
 upload-data:
 	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
-	cd data-generator && python main.py all --upload --bucket $(BUCKET)
+	cd data-generator && ../.venv/bin/python main.py all --upload --bucket $(BUCKET)
 
 upload-experiment-data:
 	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
-	cd data-generator && python main.py experiment --upload --bucket $(BUCKET)
+	cd data-generator && ../.venv/bin/python main.py experiment --upload --bucket $(BUCKET)
 
 upload-bucketing-data:
 	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
-	cd data-generator && python main.py bucketing --upload --bucket $(BUCKET)
+	cd data-generator && ../.venv/bin/python main.py bucketing --upload --bucket $(BUCKET)
 
 train-recommender:
 	@echo "Preprocessing recommender data..."
-	python sagemaker-scripts/recommender-pipeline/preprocess.py \
+	.venv/bin/python sagemaker-scripts/recommender-pipeline/preprocess.py \
 		--input_path data-generator/output/raw/experiments \
 		--output_path sagemaker-scripts/recommender-pipeline/processed
 	@echo "Training recommender model..."
-	python sagemaker-scripts/recommender-pipeline/train.py \
+	.venv/bin/python sagemaker-scripts/recommender-pipeline/train.py \
 		--train_path sagemaker-scripts/recommender-pipeline/processed \
 		--model_dir sagemaker-scripts/recommender-pipeline/
 
 train-bucketing:
 	@echo "Preprocessing bucketing data..."
-	python sagemaker-scripts/bucketing-pipeline/preprocess.py \
+	.venv/bin/python sagemaker-scripts/bucketing-pipeline/preprocess.py \
 		--input-data data-generator/output/raw/bucketing \
 		--train-data sagemaker-scripts/bucketing-pipeline/processed/train \
 		--validation-data sagemaker-scripts/bucketing-pipeline/processed/validation \
 		--test-data sagemaker-scripts/bucketing-pipeline/processed/test
 	@echo "Training bucketing model..."
-	python sagemaker-scripts/bucketing-pipeline/train.py \
+	.venv/bin/python sagemaker-scripts/bucketing-pipeline/train.py \
 		--train sagemaker-scripts/bucketing-pipeline/processed/train \
 		--validation sagemaker-scripts/bucketing-pipeline/processed/validation \
 		--model-dir sagemaker-scripts/bucketing-pipeline/

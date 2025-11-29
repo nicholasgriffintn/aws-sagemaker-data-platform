@@ -1,0 +1,16 @@
+pyproject.toml
+platform_shared/__init__.py
+platform_shared/config.py
+platform_shared/decorators.py
+platform_shared/evaluation.py
+platform_shared/inference.py
+platform_shared/metrics.py
+platform_shared/response.py
+platform_shared/sagemaker_client.py
+platform_shared/schemas.py
+platform_shared/training.py
+platform_shared.egg-info/PKG-INFO
+platform_shared.egg-info/SOURCES.txt
+platform_shared.egg-info/dependency_links.txt
+platform_shared.egg-info/requires.txt
+platform_shared.egg-info/top_level.txt
