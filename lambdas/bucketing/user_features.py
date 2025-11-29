@@ -1,42 +1,22 @@
-"""
-User Features Module
-
-Fetches user features for bucketing predictions.
-Supports multiple data sources:
-- mock: Synthetic data for development/testing
-- dynamodb: Real-time features from DynamoDB
-- feature_store: SageMaker Feature Store for ML features
-"""
-
 import boto3
 import os
+import sys
 import logging
 from typing import Optional
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+
+from config import get
+
 logger = logging.getLogger(__name__)
 
-# Configuration
-FEATURE_SOURCE = os.environ.get("FEATURE_SOURCE", "mock")
-DYNAMODB_TABLE = os.environ.get("DYNAMODB_TABLE", "user-features")
-FEATURE_GROUP_NAME = os.environ.get("FEATURE_GROUP_NAME", "user-bucketing-features")
-AWS_REGION = os.environ.get("AWS_REGION", "eu-west-1")
+FEATURE_SOURCE = get('feature_source', 'mock')
+DYNAMODB_TABLE = get('dynamodb_table', 'user-features')
+FEATURE_GROUP_NAME = get('feature_group_name', 'user-bucketing-features')
+AWS_REGION = get('region', 'eu-west-1')
 
 
 def get_user_features(user_id: str) -> Optional[dict]:
-    """
-    Fetch user features by user_id.
-    
-    Supports multiple data sources configured via FEATURE_SOURCE env var:
-    - "mock": Synthetic data for development
-    - "dynamodb": Real-time features from DynamoDB
-    - "feature_store": SageMaker Feature Store for ML features
-    
-    Args:
-        user_id: Unique identifier for the user
-        
-    Returns:
-        dict of user features or None if not found
-    """
     if FEATURE_SOURCE == "dynamodb":
         return _get_from_dynamodb(user_id)
     elif FEATURE_SOURCE == "feature_store":
@@ -46,7 +26,6 @@ def get_user_features(user_id: str) -> Optional[dict]:
 
 
 def _get_from_dynamodb(user_id: str) -> Optional[dict]:
-    """Fetch features from DynamoDB."""
     try:
         dynamodb = boto3.resource("dynamodb")
         table = dynamodb.Table(DYNAMODB_TABLE)
@@ -65,12 +44,6 @@ def _get_from_dynamodb(user_id: str) -> Optional[dict]:
 
 
 def _get_from_feature_store(user_id: str) -> Optional[dict]:
-    """
-    Fetch features from SageMaker Feature Store.
-    
-    Requires the feature group to have been created with the appropriate schema.
-    See: https://docs.aws.amazon.com/sagemaker/latest/dg/feature-store.html
-    """
     try:
         featurestore_runtime = boto3.client(
             'sagemaker-featurestore-runtime',
@@ -86,7 +59,6 @@ def _get_from_feature_store(user_id: str) -> Optional[dict]:
             logger.warning(f"User {user_id} not found in Feature Store")
             return None
         
-        # Convert Feature Store response to dict
         features = {}
         for feature in response["Record"]:
             feature_name = feature["FeatureName"]
@@ -103,7 +75,6 @@ def _get_from_feature_store(user_id: str) -> Optional[dict]:
 
 
 def _normalize_features(raw_features: dict) -> dict:
-    """Normalize features to expected types."""
     return {
         "user_id": str(raw_features.get("user_id", "")),
         "age": int(float(raw_features.get("age", 30))),
@@ -120,12 +91,6 @@ def _normalize_features(raw_features: dict) -> dict:
 
 
 def _get_mock_features(user_id: str) -> Optional[dict]:
-    """
-    Return mock features for development/testing.
-    
-    In production, replace this with real feature fetching.
-    """
-    # Simulate different user profiles based on user_id hash
     user_hash = hash(user_id) % 100
     
     if user_hash < 20:

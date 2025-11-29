@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""
-Preprocessing script for user bucketing pipeline.
-
-Transforms raw user data into features suitable for training
-a user bucketing model for experiment assignment.
-"""
-
 import argparse
 import os
 import sys
@@ -20,22 +13,26 @@ import joblib
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
 
 from training import setup_logging
+from schemas import (
+    AGE_BINS,
+    AGE_LABELS,
+    SPENDING_BINS,
+    SPENDING_LABELS,
+    HIGH_VALUE_ENGAGEMENT_QUANTILE,
+    HIGH_VALUE_SPENDING_QUANTILE,
+)
 
 logger = setup_logging(__name__)
 
 
 class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
-    """
-    Custom transformer that handles all feature engineering and encoding
-    to ensure training/serving consistency.
-    """
     
     def __init__(self):
         self.label_encoders = {}
         self.scaler = StandardScaler()
         self.feature_columns = None
-        self.age_bins = None
-        self.spending_bins = None
+        self.age_bins = AGE_BINS
+        self.spending_bins = SPENDING_BINS
         
     def fit(self, X, y=None):
         """Fit the transformer on training data."""
@@ -77,33 +74,24 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         return pd.DataFrame(X_scaled, columns=self.feature_columns, index=X.index)
     
     def _create_engineered_features(self, df):
-        """Create engineered features."""
-        # Spend per purchase
         df['spend_per_purchase'] = np.where(
             df['purchase_history'] > 0, 
             df['total_spent'] / df['purchase_history'], 
             0
         )
         
-        # Session efficiency
         df['session_efficiency'] = df['page_views'] / np.maximum(df['session_count'], 1)
         
-        # Age groups
-        if self.age_bins is None:
-            self.age_bins = [0, 25, 35, 50, 100]
         df['age_group'] = pd.cut(
             df['age'], 
             bins=self.age_bins, 
-            labels=['young', 'adult', 'middle_aged', 'senior']
+            labels=AGE_LABELS
         )
         
-        # Spending tiers
-        if self.spending_bins is None:
-            self.spending_bins = [-1, 0, 50, 200, np.inf]
         df['spending_tier'] = pd.cut(
             df['total_spent'], 
             bins=self.spending_bins,
-            labels=['none', 'low', 'medium', 'high']
+            labels=SPENDING_LABELS
         )
         
         return df
@@ -145,10 +133,9 @@ def main():
     
     logger.info(f"Loaded data with shape: {df.shape}")
     
-    # Create target labels
     df['high_value_user'] = (
-        (df['engagement_score'] > df['engagement_score'].quantile(0.7)) & 
-        (df['total_spent'] > df['total_spent'].quantile(0.6))
+        (df['engagement_score'] > df['engagement_score'].quantile(HIGH_VALUE_ENGAGEMENT_QUANTILE)) & 
+        (df['total_spent'] > df['total_spent'].quantile(HIGH_VALUE_SPENDING_QUANTILE))
     ).astype(int)
     
     base_features = [

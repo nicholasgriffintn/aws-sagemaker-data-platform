@@ -2,7 +2,10 @@ import { SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
 import { Role } from 'aws-cdk-lib/aws-iam';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 
-export * from './monitoring';
+export {
+  EndpointMonitoringProps,
+  EndpointMonitoringResources,
+} from '../../../types';
 
 export interface PipelineScriptLocations {
   preprocessing: string;

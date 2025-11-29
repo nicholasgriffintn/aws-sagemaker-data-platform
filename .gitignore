@@ -141,3 +141,6 @@ cdk.context.json
 
 
 .pnpm-store/
+
+
+__pycache__/

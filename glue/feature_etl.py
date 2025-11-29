@@ -8,6 +8,7 @@ spark = SparkSession.builder.appName("MLFeatureETL").getOrCreate()
 
 args = sys.argv
 
+
 def parse_args(args):
     result = {}
     for i in range(len(args)):
@@ -15,22 +16,20 @@ def parse_args(args):
             result[args[i][2:]] = args[i+1]
     return result
 
+
 params = parse_args(args)
 raw_bucket = params["raw_bucket"]
 out_bucket = params["out_bucket"]
 
-# Load the raw experiment metadata and results from S3
 metadata = spark.read.parquet(f"{raw_bucket}/metadata/")
 results = spark.read.parquet(f"{raw_bucket}/results/")
 
-# Join metadata and results on experiment_id
 df = results.join(
     metadata,
     on="experiment_id",
     how="inner"
 )
 
-# Derived Time Features
 df = (
     df
     .withColumn("start_ts", F.to_timestamp("start_datetime"))
@@ -48,7 +47,6 @@ df = (
     )
 )
 
-# Derived Boolean Features
 df = (
     df
     .withColumn("is_personalised",
@@ -65,8 +63,6 @@ df = (
     )
 )
 
-# Age Band Encoding
-# Create a mapping from segment names to integer indices
 age_band_index = (
     df.select("segment").distinct().rdd
     .map(lambda r: r["segment"])
@@ -75,8 +71,6 @@ age_band_index = (
 )
 age_index_map = dict(age_band_index)
 
-# Create the mapping expression for Spark SQL
-# Flatten the dict into alternating key, value pairs for create_map
 map_entries = []
 for k, v in age_index_map.items():
     map_entries.extend([F.lit(k), F.lit(v)])
@@ -85,31 +79,24 @@ mapping_expr = F.create_map(*map_entries)
 
 df = df.withColumn("segment_encoded", mapping_expr[F.col("segment")])
 
-# Label Calculation: Uplift Percentage
 df = (
     df
-    .withColumn("uplift_pct", F.col("uplift_pct"))  # already present
+    .withColumn("uplift_pct", F.col("uplift_pct"))
     .withColumn("uplift_abs", F.col("metric_value") - F.col("control_value"))
 )
 
-# Select final columns for model training
 final_cols = [
-    # Label
     "uplift_pct",
-
-    # Numeric experiment design
-    "num_variants", "duration_days",
-
-    # Context
+    "num_variants",
+    "duration_days",
     "start_hour_of_day",
     "start_day_of_week",
     "start_month",
-
-    # Categoricals
-    "surface", "platform", "content_scope", "experiment_type",
+    "surface",
+    "platform",
+    "content_scope",
+    "experiment_type",
     "segment_encoded",
-
-    # Booleans
     "is_personalised",
     "is_algorithm_change",
     "is_copy_only",
@@ -118,7 +105,6 @@ final_cols = [
 
 out = df.select(*final_cols)
 
-# Write the processed features to S3
 (
     out.repartition(200)
        .write

@@ -1,5 +1,4 @@
 import json
-import logging
 import os
 import sys
 
@@ -7,16 +6,18 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
 
 import pandas as pd
 
-from sagemaker_client import SageMakerPredictor
+from config import require
+from decorators import handle_errors, log_request, parse_json_body, require_fields
 from response import api_response, error_response
+from sagemaker_client import SageMakerPredictor
 from goal_parser import parse_goal
 from featurise import featurise_template
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+predictor = SageMakerPredictor(require('endpoint_name'))
 
-ENDPOINT_NAME = os.environ.get("ENDPOINT_NAME")
-predictor = SageMakerPredictor(ENDPOINT_NAME)
+TOP_N_MIN = 1
+TOP_N_MAX = 100
+TOP_N_DEFAULT = 5
 
 
 def load_templates():
@@ -38,45 +39,34 @@ def score_candidates(candidates):
     return candidates
 
 
+@handle_errors
+@log_request
+@parse_json_body
+@require_fields('goal')
 def handler(event, context):
-    try:
-        body_str = event.get("body", "{}")
-        if not body_str:
-            return error_response(400, "Request body is required")
-        
-        try:
-            body = json.loads(body_str)
-        except json.JSONDecodeError:
-            return error_response(400, "Invalid JSON in request body")
-        
-        goal = body.get("goal", "")
-        if not goal:
-            return error_response(400, "goal is required")
-        
-        n = body.get("top_n", 5)
-        if not isinstance(n, int) or n < 1 or n > 100:
-            return error_response(400, "top_n must be an integer between 1 and 100")
-
-        parsed = parse_goal(goal)
-        templates = load_templates()
-
-        candidates = []
-        for t in templates:
-            feats = featurise_template(t, parsed)
-            feats["template_id"] = t["id"]
-            feats["description"] = t["description"]
-            candidates.append(feats)
-
-        scored = score_candidates(candidates)
-        scored_sorted = sorted(scored, key=lambda x: x["predicted_uplift"], reverse=True)
-        top = scored_sorted[:n]
-
-        return api_response(200, {
-            "goal": goal,
-            "parsed": parsed,
-            "recommendations": top,
-        })
+    body = event['parsed_body']
+    goal = body['goal']
     
-    except Exception as e:
-        logger.exception("Unexpected error in recommender handler")
-        return error_response(500, f"Internal server error: {str(e)}")
+    n = body.get("top_n", TOP_N_DEFAULT)
+    if not isinstance(n, int) or n < TOP_N_MIN or n > TOP_N_MAX:
+        return error_response(400, f"top_n must be an integer between {TOP_N_MIN} and {TOP_N_MAX}")
+
+    parsed = parse_goal(goal)
+    templates = load_templates()
+
+    candidates = []
+    for t in templates:
+        feats = featurise_template(t, parsed)
+        feats["template_id"] = t["id"]
+        feats["description"] = t["description"]
+        candidates.append(feats)
+
+    scored = score_candidates(candidates)
+    scored_sorted = sorted(scored, key=lambda x: x["predicted_uplift"], reverse=True)
+    top = scored_sorted[:n]
+
+    return api_response(200, {
+        "goal": goal,
+        "parsed": parsed,
+        "recommendations": top,
+    })

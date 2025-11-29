@@ -5,7 +5,7 @@ import { ScalableTarget, ServiceNamespace, TargetTrackingScalingPolicy, Predefin
 import { Topic } from "aws-cdk-lib/aws-sns";
 import { Construct } from "constructs";
 
-import { EndpointMonitoringProps } from '../types/monitoring';
+import { EndpointMonitoringProps } from '../../../types';
 
 export class EndpointMonitoring extends Construct {
   public readonly alertsTopic: Topic;

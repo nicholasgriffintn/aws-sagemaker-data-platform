@@ -1,23 +1,25 @@
-import json
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
 
-from sagemaker_client import SageMakerPredictor
+from config import require
+from decorators import handle_errors, log_request, parse_json_body, require_fields
 from response import api_response, error_response
+from sagemaker_client import SageMakerPredictor
+from schemas import USER_FEATURE_NAMES
 from user_features import get_user_features
 
-ENDPOINT_NAME = os.environ.get("ENDPOINT_NAME")
-predictor = SageMakerPredictor(ENDPOINT_NAME)
+predictor = SageMakerPredictor(require('endpoint_name'))
 
 
+@handle_errors
+@log_request
+@parse_json_body
+@require_fields('user_id')
 def handler(event, context):
-    body = json.loads(event.get("body", "{}"))
-    user_id = body.get("user_id")
-
-    if not user_id:
-        return error_response(400, "user_id is required")
+    body = event['parsed_body']
+    user_id = body['user_id']
 
     features = get_user_features(user_id)
 
@@ -39,17 +41,5 @@ def handler(event, context):
 
 
 def predict_bucket(features: dict) -> dict:
-    payload = [{
-        "age": features.get("age"),
-        "session_count": features.get("session_count"),
-        "avg_session_duration": features.get("avg_session_duration"),
-        "page_views": features.get("page_views"),
-        "purchase_history": features.get("purchase_history"),
-        "total_spent": features.get("total_spent"),
-        "engagement_score": features.get("engagement_score"),
-        "historical_conversion_rate": features.get("historical_conversion_rate"),
-        "gender": features.get("gender"),
-        "location": features.get("location"),
-    }]
-
+    payload = [{k: features.get(k) for k in USER_FEATURE_NAMES}]
     return predictor.predict(payload)

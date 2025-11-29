@@ -6,7 +6,7 @@ import { Topic } from "aws-cdk-lib/aws-sns";
 import { Construct } from 'constructs';
 
 import { EndpointMonitoring } from './monitoring';
-import { EndpointMonitoringProps } from '../types/monitoring';
+import { EndpointMonitoringProps } from '../../../types';
 import { getScriptDirectory, getScriptFilename } from '../utils/paths';
 
 export interface EndpointProps {

@@ -9,6 +9,7 @@ import { Construct } from 'constructs';
 
 import { PipelineStackProps } from '../../types';
 import {
+  API_LIMITS,
   INSTANCE_TYPES,
   LAMBDA_CONFIG,
   getPipelinePrefix,
@@ -179,9 +180,9 @@ export abstract class BasePipelineStack extends Stack {
         environmentName: props.environmentName,
         api: this.api,
         apiName: config.pipelineName,
-        rateLimit: 100,
-        burstLimit: 200,
-        quotaLimit: 10000,
+        rateLimit: API_LIMITS.DEFAULT_RATE_LIMIT,
+        burstLimit: API_LIMITS.DEFAULT_BURST_LIMIT,
+        quotaLimit: API_LIMITS.DEFAULT_QUOTA_LIMIT,
       });
     } else {
       apiResource.addMethod(
