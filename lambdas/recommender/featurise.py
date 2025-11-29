@@ -8,8 +8,7 @@ SEGMENT_ENCODING = {
     "56_65": 4,
 }
 
-# This is a simplified featurisation function, it assumes that the parsed_goal
-# contains keys that map directly to features needed.
+
 def featurise_template(template, parsed_goal):
     start_time = parsed_goal.get("time_focus", 18)
 

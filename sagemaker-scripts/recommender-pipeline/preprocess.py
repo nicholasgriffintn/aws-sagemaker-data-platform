@@ -8,15 +8,19 @@ an uplift prediction model.
 
 import argparse
 import os
+import sys
 import glob
+
 import pandas as pd
 import pyarrow.parquet as pq
 from sklearn.model_selection import train_test_split
 import joblib
-import logging
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+
+from training import setup_logging
+
+logger = setup_logging(__name__)
 
 
 def load_parquet_files(directory):

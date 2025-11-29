@@ -1,29 +1,21 @@
 #!/usr/bin/env python3
-"""
-Inference script for user bucketing pipeline.
-
-Handles real-time inference requests for user bucketing predictions.
-Supports both Pipeline models (with preprocessing) and standalone classifiers.
-"""
-
 import json
 import joblib
 import pandas as pd
 import numpy as np
 import os
 import logging
+import sys
 from sklearn.pipeline import Pipeline
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
+
+from schemas import USER_FEATURE_NAMES, USER_FEATURE_VALIDATION
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-REQUIRED_FEATURES = [
-    'age', 'session_count', 'avg_session_duration', 'page_views',
-    'purchase_history', 'total_spent', 'engagement_score',
-    'historical_conversion_rate', 'gender', 'location'
-]
-
-# Global model and transformer references
+REQUIRED_FEATURES = USER_FEATURE_NAMES
 MODEL = None
 FEATURE_TRANSFORMER = None
 IS_PIPELINE = False
@@ -79,21 +71,7 @@ def input_fn(request_body, request_content_type):
 
 
 def _validate_input_data(df):
-    """Validate input data types and ranges."""
-    validations = {
-        'age': {'type': (int, float), 'range': (0, 120)},
-        'session_count': {'type': (int, float), 'range': (0, None)},
-        'avg_session_duration': {'type': (int, float), 'range': (0, None)},
-        'page_views': {'type': (int, float), 'range': (0, None)},
-        'purchase_history': {'type': (int, float), 'range': (0, None)},
-        'total_spent': {'type': (int, float), 'range': (0, None)},
-        'engagement_score': {'type': (int, float), 'range': (0, 1)},
-        'historical_conversion_rate': {'type': (int, float), 'range': (0, 1)},
-        'gender': {'type': str, 'values': ['male', 'female', 'other', 'M', 'F', 'O']},
-        'location': {'type': str, 'range': None}
-    }
-    
-    for col, rules in validations.items():
+    for col, rules in USER_FEATURE_VALIDATION.items():
         if col not in df.columns:
             continue
             

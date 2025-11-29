@@ -16,6 +16,7 @@ import { FeatureInfrastructureStack } from '../lib/stacks/feature-infrastructure
 import { ExperimentPipelineStack } from '../lib/stacks/pipelines/experiment-pipeline-stack';
 import { RecommenderPipelineStack } from '../lib/stacks/pipelines/recommender-pipeline-stack';
 import { FrontendStack } from '../lib/stacks/frontend-stack';
+import { grantPipelineStoragePermissions } from '../lib/utils';
 
 interface EnvConfig {
   componentName: string;
@@ -81,14 +82,7 @@ const storage = new StorageStack(
   }
 );
 
-storage.codeBucket.grantRead(iam.pipelineRole);
-storage.rawDataBucket.grantReadWrite(iam.pipelineRole);
-storage.processedDataBucket.grantReadWrite(iam.pipelineRole);
-storage.rawDataBucket.grantReadWrite(iam.sagemakerJobRole);
-storage.processedDataBucket.grantReadWrite(iam.sagemakerJobRole);
-storage.kmsKey.grantEncryptDecrypt(iam.sagemakerJobRole);
-storage.kmsKey.grantEncryptDecrypt(iam.pipelineRole);
-storage.kmsKey.grantEncryptDecrypt(iam.sagemakerExecutionRole);
+grantPipelineStoragePermissions(storage, iam);
 
 const glue = new GlueStack(app, `${cfg.componentName}-Glue-${envName}`, {
   env,

@@ -55,6 +55,7 @@ install:
 	pip3 install -r glue/requirements.txt
 	pip3 install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
 	pip3 install -r sagemaker-scripts/recommender-pipeline/requirements.txt
+	pip3 install -r lambdas/shared/requirements.txt
 	pip3 install -r lambdas/bucketing/requirements.txt
 	pip3 install -r lambdas/recommender/requirements.txt
 

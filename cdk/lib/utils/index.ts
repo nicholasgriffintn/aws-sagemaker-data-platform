@@ -1,0 +1,1 @@
+export { grantPipelineStoragePermissions } from './permissions';
