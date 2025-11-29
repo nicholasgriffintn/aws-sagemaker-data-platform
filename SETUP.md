@@ -152,9 +152,19 @@ aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recom
 
 ### Monitor Pipeline Execution
 
-- **Step Functions**: AWS Console → Step Functions → State Machines
-- **Glue ETL Jobs**: AWS Console → AWS Glue → ETL Jobs → Job runs
-- **SageMaker Pipelines**: AWS Console → SageMaker → Pipelines
+```bash
+# List Step Function executions
+aws stepfunctions list-executions \
+  --state-machine-arn arn:aws:states:eu-west-1:$(aws sts get-caller-identity --query Account --output text):stateMachine:aws-ml-platform-dev-full-data-pipeline
+
+# Check Glue job runs
+aws glue get-job-runs --job-name aws-ml-platform-dev-bucketing-etl
+aws glue get-job-runs --job-name aws-ml-platform-dev-experiment-etl
+
+# List SageMaker pipeline executions
+aws sagemaker list-pipeline-executions --pipeline-name aws-ml-platform-dev-bucketing-pipeline
+aws sagemaker list-pipeline-executions --pipeline-name aws-ml-platform-dev-recommender-pipeline
+```
 
 ## Step 10: Enable Endpoint Deployment
 

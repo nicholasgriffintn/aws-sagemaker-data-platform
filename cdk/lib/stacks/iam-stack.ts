@@ -185,7 +185,7 @@ export class IamStack extends Stack {
     this.pipelineRole.addToPolicy(
       new PolicyStatement({
         actions: ['iam:PassRole'],
-        resources: [this.sagemakerJobRole.roleArn],
+        resources: [this.sagemakerJobRole.roleArn, this.pipelineRole.roleArn],
       })
     );
 
