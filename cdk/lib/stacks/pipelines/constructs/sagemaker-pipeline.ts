@@ -31,7 +31,7 @@ export class SageMakerPipeline extends Construct {
     const codeS3Uri = `s3://${props.codeBucket.bucketName}/${scriptDirectory}/`;
 
     const defaults = {
-      inputDataUrl: `s3://${props.rawDataBucket.bucketName}/${props.pipelineName}/data/`,
+      inputDataUrl: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/data/`,
       modelApprovalStatus: 'PendingManualApproval',
       processingInstanceType: props.primaryInstanceType,
       trainingInstanceType: props.primaryInstanceType,
@@ -186,6 +186,7 @@ export class SageMakerPipeline extends Construct {
         {
           Name: 'ModelTraining',
           Type: 'Training',
+          DependsOn: ['DataPreprocessing'],
           Arguments: {
             AlgorithmSpecification: {
               TrainingImage: props.sagemakerImageUri,
