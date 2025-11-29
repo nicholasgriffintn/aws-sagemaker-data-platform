@@ -42,6 +42,13 @@ export class NetworkStack extends Stack {
 			],
 		});
 
+		this.sagemakerStudioSg = new SecurityGroup(this, 'SagemakerStudioSecurityGroup', {
+			vpc: this.vpc,
+			securityGroupName: `${props.componentName}-${props.environmentName}-sagemaker-studio-sg`,
+			description: 'Security group for Sagemaker Studio and jobs that run within it.',
+			allowAllOutbound: true,
+		});
+
 		if (props.private) {
 			const interfaceServices = [
 				{
@@ -98,19 +105,13 @@ export class NetworkStack extends Stack {
 			);
 		}
 
-		this.sagemakerStudioSg = new SecurityGroup(this, 'SagemakerStudioSecurityGroup', {
-			vpc: this.vpc,
-			securityGroupName: `${props.componentName}-${props.environmentName}-sagemaker-studio-sg`,
-			description: 'Security group for Sagemaker Studio and jobs that run within it.',
-			allowAllOutbound: true,
-		});
 
-		new CfnOutput(this, `${ props.componentName }-vpc-id`, {
+		new CfnOutput(this, `${props.componentName}-vpc-id`, {
 			value: this.vpc.vpcId,
 			description: 'The ID of the VPC',
 		});
 
-		new CfnOutput(this, `${ props.componentName }-sagemaker-studio-security-group-id`, {
+		new CfnOutput(this, `${props.componentName}-sagemaker-studio-security-group-id`, {
 			value: this.sagemakerStudioSg.securityGroupId,
 			description: 'The ID of the Sagemaker Studio security group',
 		});

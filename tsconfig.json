@@ -1,18 +1,39 @@
 {
-	"compilerOptions": {
-		"target": "ES2021",
-		"module": "commonjs",
-		"lib": ["ES2021"],
-		"declaration": true,
-		"sourceMap": true,
-		"outDir": "dist",
-		"rootDir": ".",
-		"strict": true,
-		"noImplicitReturns": true,
-		"noFallthroughCasesInSwitch": true,
-		"esModuleInterop": true,
-		"skipLibCheck": true
-	},
-	"include": ["bin", "lib", "config/**/*.d.ts"],
-	"exclude": ["dist", "cdk.out", "node_modules"]
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": [
+      "es2020"
+    ],
+    "declaration": true,
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": false,
+    "inlineSourceMap": true,
+    "inlineSources": true,
+    "experimentalDecorators": true,
+    "strictPropertyInitialization": false,
+    "typeRoots": [
+      "./node_modules/@types"
+    ],
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": [
+    "cdk/**/*.ts",
+    "lambdas/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "cdk.out"
+  ]
 }

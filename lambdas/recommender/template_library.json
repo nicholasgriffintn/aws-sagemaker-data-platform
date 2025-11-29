@@ -1,0 +1,180 @@
+[
+  {
+    "id": "tv_live_news_peak_promo",
+    "description": "Promote Live News hero module on TV Home during evening peak.",
+    "surface": "tv_home",
+    "platform": "tv_app",
+    "content_scope": "live_news",
+    "experiment_type": "layout_change",
+    "num_variants": 2,
+    "is_algorithm_change": false,
+    "is_personalised": false,
+    "is_copy_only": false,
+    "uses_notifications": false
+  },
+  {
+    "id": "tv_pre_live_news_prompt",
+    "description": "Show pre-live news 10-minute prompt on TV Home for 16–25s.",
+    "surface": "tv_home",
+    "platform": "tv_app",
+    "content_scope": "live_news",
+    "experiment_type": "notification_timing",
+    "uses_notifications": true
+  },
+  {
+    "id": "article_home_young_reorder",
+    "description": "Reorder Homepage to push trending content higher for 16–25s.",
+    "surface": "article_home",
+    "platform": "app",
+    "content_scope": "news",
+    "experiment_type": "content_order",
+    "is_personalised": true
+  },
+  {
+    "id": "article_page_related_stories_ml",
+    "description": "ML-based personalised related-stories module for young adults.",
+    "surface": "article_page",
+    "platform": "web",
+    "content_scope": "news",
+    "experiment_type": "recommendation_algo_change",
+    "is_algorithm_change": true,
+    "is_personalised": true
+  },
+  {
+    "id": "live_news_push_16_25",
+    "description": "Push reminder for Live News at 18:00 for 16–25s.",
+    "surface": "app_home",
+    "platform": "app",
+    "content_scope": "live_news",
+    "experiment_type": "notification_timing",
+    "uses_notifications": true
+  },
+  {
+    "id": "tv_home_sport_live_promo",
+    "description": "Highlight live sport module for broader engagement uplift.",
+    "surface": "tv_home",
+    "platform": "tv_app",
+    "content_scope": "live_sport",
+    "experiment_type": "layout_change"
+  },
+  {
+    "id": "article_home_video_first",
+    "description": "Video-first layout for breaking news on article home.",
+    "surface": "article_home",
+    "platform": "web",
+    "content_scope": "news",
+    "experiment_type": "layout_change"
+  },
+  {
+    "id": "app_live_news_hero_slot",
+    "description": "Move live news story into hero slot for mobile users.",
+    "surface": "app_home",
+    "platform": "app",
+    "content_scope": "live_news",
+    "experiment_type": "layout_change"
+  },
+  {
+    "id": "article_page_slimmer_layout",
+    "description": "Slimmer article page layout for faster scanning.",
+    "surface": "article_page",
+    "platform": "web",
+    "content_scope": "news",
+    "experiment_type": "layout_change"
+  },
+  {
+    "id": "tv_live_news_reminder_banner",
+    "description": "Static reminder banner for live news on TV Home.",
+    "surface": "tv_home",
+    "platform": "tv_app",
+    "content_scope": "live_news",
+    "experiment_type": "copy_test",
+    "is_copy_only": true
+  },
+  {
+    "id": "app_personalised_picks_young",
+    "description": "Personalised article suggestions for 16–25s.",
+    "surface": "app_home",
+    "platform": "app",
+    "content_scope": "news",
+    "experiment_type": "personalisation",
+    "is_personalised": true
+  },
+  {
+    "id": "article_page_inline_video_autoplay",
+    "description": "Autoplay inline video for news live moments.",
+    "surface": "article_page",
+    "platform": "web",
+    "content_scope": "live_news",
+    "experiment_type": "algorithm_change",
+    "is_algorithm_change": true
+  },
+  {
+    "id": "tv_guide_evening_slot_highlight",
+    "description": "Highlight live news at 18:00 in TV guide for young adults.",
+    "surface": "tv_guide",
+    "platform": "tv_app",
+    "content_scope": "live_news",
+    "experiment_type": "copy_test",
+    "is_copy_only": true
+  },
+  {
+    "id": "article_home_push_upcoming_live",
+    "description": "Show upcoming live news modules higher at 17:30–18:00.",
+    "surface": "article_home",
+    "platform": "web",
+    "content_scope": "live_news",
+    "experiment_type": "layout_change"
+  },
+  {
+    "id": "app_quick_read_format",
+    "description": "Quick-read format test for breaking news articles.",
+    "surface": "app_home",
+    "platform": "app",
+    "content_scope": "news",
+    "experiment_type": "layout_change"
+  },
+  {
+    "id": "tv_highlights_ml_ranker",
+    "description": "ML ranker for TV Home highlights for 16–25s.",
+    "surface": "tv_home",
+    "platform": "tv_app",
+    "content_scope": "news",
+    "experiment_type": "recommendation_algo_change",
+    "is_algorithm_change": true,
+    "is_personalised": true
+  },
+  {
+    "id": "article_page_adaptive_layout_young",
+    "description": "Adaptive layout with larger images and simpler text for 16–25.",
+    "surface": "article_page",
+    "platform": "app",
+    "content_scope": "news",
+    "experiment_type": "layout_change"
+  },
+  {
+    "id": "live_news_pre_event_card",
+    "description": "Add pre-event card for live news in app home 30 minutes before start.",
+    "surface": "app_home",
+    "platform": "app",
+    "content_scope": "live_news",
+    "experiment_type": "layout_change"
+  },
+  {
+    "id": "article_home_push_notifications_targeted",
+    "description": "Targeted push notifications for key news moments for 16–25.",
+    "surface": "app_home",
+    "platform": "app",
+    "content_scope": "news",
+    "experiment_type": "notification_timing",
+    "uses_notifications": true
+  },
+  {
+    "id": "article_page_topic_cluster_for_you",
+    "description": "‘For you’ topic-based clustering on article page.",
+    "surface": "article_page",
+    "platform": "web",
+    "content_scope": "news",
+    "experiment_type": "personalisation",
+    "is_personalised": true
+  }
+]

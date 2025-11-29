@@ -1,6 +1,6 @@
 {
-	"componentName": "aws-sagemaker-data-platform",
-	"awsAccount": "651706750584",
-	"awsRegion": "eu-west-1",
-	"private": false
+    "componentName": "aws-ml-platform",
+    "awsAccount": "651706750584",
+    "awsRegion": "eu-west-1",
+    "private": false
 }

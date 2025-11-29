@@ -1,0 +1,6 @@
+xgboost==1.7.6
+pandas
+pyarrow
+joblib
+numpy
+scikit-learn
