@@ -146,8 +146,8 @@ make run-experiment-etl
 Then run SageMaker pipelines:
 
 ```bash
-aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-bucketing-bucketing-pipeline
-aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recommender-bucketing-pipeline
+aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-bucketing-pipeline
+aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recommender-pipeline
 ```
 
 ### Monitor Pipeline Execution

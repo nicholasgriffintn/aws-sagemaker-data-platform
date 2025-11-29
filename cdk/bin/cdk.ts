@@ -239,8 +239,8 @@ const dataPipeline = new DataPipelineStack(
     processedDataBucket: storage.processedDataBucket,
     bucketingEtlJobName: `${cfg.componentName}-${envName}-bucketing-etl`,
     experimentEtlJobName: `${cfg.componentName}-${envName}-experiment-etl`,
-    bucketingPipelineName: `${cfg.componentName}-${envName}-bucketing-bucketing-pipeline`,
-    recommenderPipelineName: `${cfg.componentName}-${envName}-recommender-bucketing-pipeline`,
+    bucketingPipelineName: `${cfg.componentName}-${envName}-bucketing-pipeline`,
+    recommenderPipelineName: `${cfg.componentName}-${envName}-recommender-pipeline`,
   }
 );
 dataPipeline.addDependency(glue);
