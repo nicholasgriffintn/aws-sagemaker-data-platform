@@ -124,13 +124,7 @@ print(f"Writing processed data to: {OUTPUT_PATH}")
 
 processed_df.write \
     .mode("overwrite") \
-    .option("header", "true") \
-    .csv(OUTPUT_PATH)
-
-parquet_path = OUTPUT_PATH.replace("/data/", "/parquet/")
-processed_df.write \
-    .mode("overwrite") \
-    .parquet(parquet_path)
+    .parquet(OUTPUT_PATH)
 
 print("ETL job completed successfully")
 

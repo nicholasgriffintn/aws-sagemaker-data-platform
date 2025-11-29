@@ -29,6 +29,7 @@ export class SageMakerPipeline extends Construct {
 
     const scriptDirectory = getScriptDirectory(scripts.preprocessing);
     const codeS3Uri = `s3://${props.codeBucket.bucketName}/${scriptDirectory}/`;
+    const trainingCodeS3Uri = `s3://${props.codeBucket.bucketName}/${scriptDirectory}/sourcedir.tar.gz`;
 
     const defaults = {
       inputDataUrl: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/data/`,
@@ -232,11 +233,11 @@ export class SageMakerPipeline extends Construct {
               max_depth: { Get: 'Parameters.MaxDepth' },
               random_state: '42',
               sagemaker_program: getScriptFilename(scripts.training),
-              sagemaker_submit_directory: codeS3Uri,
+              sagemaker_submit_directory: trainingCodeS3Uri,
             },
             Environment: {
               SAGEMAKER_PROGRAM: getScriptFilename(scripts.training),
-              SAGEMAKER_SUBMIT_DIRECTORY: codeS3Uri,
+              SAGEMAKER_SUBMIT_DIRECTORY: trainingCodeS3Uri,
             },
             VpcConfig: {
               SecurityGroupIds: [props.securityGroup.securityGroupId],
@@ -362,7 +363,7 @@ export class SageMakerPipeline extends Construct {
                           SAGEMAKER_PROGRAM: getScriptFilename(
                             scripts.inference
                           ),
-                          SAGEMAKER_SUBMIT_DIRECTORY: codeS3Uri,
+                          SAGEMAKER_SUBMIT_DIRECTORY: trainingCodeS3Uri,
                         },
                       },
                     ],

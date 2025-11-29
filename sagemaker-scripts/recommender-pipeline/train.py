@@ -12,17 +12,14 @@ from platform_shared import setup_logging, save_model_artifacts, MetricsTracker
 logger = setup_logging(__name__)
 
 
-def load_parquet(path):
-    return pd.read_parquet(path)
-
-
 def main():
     """
-    Uses XGBoost for regression to predict uplift percentages:
+    Uses XGBoost for regression to predict uplift percentages.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--train_path", type=str, default="/opt/ml/input/data/training/")
-    parser.add_argument("--model_dir", type=str, default="/opt/ml/model/")
+    parser.add_argument("--model-dir", type=str, default=os.environ.get("SM_MODEL_DIR", "/opt/ml/model"))
+    parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAINING", "/opt/ml/input/data/training"))
+    parser.add_argument("--validation", type=str, default=os.environ.get("SM_CHANNEL_VALIDATION", "/opt/ml/input/data/validation"))
     parser.add_argument("--max_depth", type=int, default=8)
     parser.add_argument("--eta", type=float, default=0.05)
     parser.add_argument("--subsample", type=float, default=0.8)
@@ -31,13 +28,17 @@ def main():
     parser.add_argument("--early_stopping_rounds", type=int, default=20)
     args = parser.parse_args()
 
-    logger.info(f"Training data path: {args.train_path}")
+    logger.info(f"Training data path: {args.train}")
+    logger.info(f"Validation data path: {args.validation}")
     logger.info(f"Model output path: {args.model_dir}")
 
-    X_train = load_parquet(os.path.join(args.train_path, "X_train.parquet"))
-    X_val = load_parquet(os.path.join(args.train_path, "X_val.parquet"))
-    y_train = load_parquet(os.path.join(args.train_path, "y_train.parquet"))["uplift_pct"]
-    y_val = load_parquet(os.path.join(args.train_path, "y_val.parquet"))["uplift_pct"]
+    train_df = pd.read_csv(os.path.join(args.train, "train.csv"))
+    val_df = pd.read_csv(os.path.join(args.validation, "validation.csv"))
+
+    X_train = train_df.drop("target", axis=1)
+    y_train = train_df["target"]
+    X_val = val_df.drop("target", axis=1)
+    y_val = val_df["target"]
 
     logger.info(f"Training data shape: {X_train.shape}")
     logger.info(f"Validation data shape: {X_val.shape}")
@@ -81,7 +82,7 @@ def main():
 
     save_model_artifacts(args.model_dir, bst, metrics, model_filename='model.bst')
 
-    feature_list_src = os.path.join(args.train_path, "feature_list.pkl")
+    feature_list_src = os.path.join(args.train, "feature_list.pkl")
     feature_list_dst = os.path.join(args.model_dir, "feature_list.pkl")
     if os.path.exists(feature_list_src):
         shutil.copy(feature_list_src, feature_list_dst)

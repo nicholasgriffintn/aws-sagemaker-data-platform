@@ -151,3 +151,4 @@ data-generator/output/
 
 
 sagemaker-scripts/**/platform_shared/
+*.gz

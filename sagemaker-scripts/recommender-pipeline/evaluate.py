@@ -27,8 +27,9 @@ def main():
     evaluator = ModelEvaluator(logger, model_type='regression')
     model = evaluator.load_model(args.model_path, extension='.bst')
 
-    X_test = pd.read_parquet(os.path.join(args.test_path, 'X_val.parquet'))
-    y_test = pd.read_parquet(os.path.join(args.test_path, 'y_val.parquet'))['uplift_pct']
+    test_df = pd.read_csv(os.path.join(args.test_path, 'test.csv'))
+    X_test = test_df.drop('target', axis=1)
+    y_test = test_df['target']
 
     logger.info(f"Test data shape: {X_test.shape}")
 

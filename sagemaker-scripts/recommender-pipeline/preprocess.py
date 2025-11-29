@@ -51,16 +51,15 @@ def numeric_cast(df):
 def main():
     """Preprocess experiment data for recommender model training."""
     parser = argparse.ArgumentParser()
-    parser.add_argument("--input_path", type=str, 
-                        default=os.environ.get("SM_CHANNEL_TRAINING", "/opt/ml/processing/input"))
-    parser.add_argument("--output_path", type=str, 
-                        default="/opt/ml/processing/train")
+    parser.add_argument("--input_path", type=str, default="/opt/ml/processing/input")
+    parser.add_argument("--train_path", type=str, default="/opt/ml/processing/train")
+    parser.add_argument("--validation_path", type=str, default="/opt/ml/processing/validation")
+    parser.add_argument("--test_path", type=str, default="/opt/ml/processing/test")
     parser.add_argument("--test_size", type=float, default=0.2)
     parser.add_argument("--random_state", type=int, default=42)
     args = parser.parse_args()
 
     logger.info(f"Input path: {args.input_path}")
-    logger.info(f"Output path: {args.output_path}")
 
     logger.info("Loading experiment results data...")
     df = load_parquet_files(args.input_path)
@@ -69,9 +68,11 @@ def main():
     logger.info("Casting categorical columns to numeric...")
     df = numeric_cast(df)
 
-    # Check for target column
     if "uplift_pct" not in df.columns:
-        raise ValueError("Target column 'uplift_pct' not found in data")
+        if "avg_uplift_pct" in df.columns:
+            df = df.rename(columns={"avg_uplift_pct": "uplift_pct"})
+        else:
+            raise ValueError("Target column 'uplift_pct' or 'avg_uplift_pct' not found in data")
 
     y = df["uplift_pct"]
     X = df.drop(columns=["uplift_pct"])
@@ -79,24 +80,39 @@ def main():
     logger.info(f"Features: {list(X.columns)}")
     logger.info(f"Target stats: mean={y.mean():.4f}, std={y.std():.4f}")
 
-    logger.info("Splitting into train/validation sets...")
-    X_train, X_val, y_train, y_val = train_test_split(
+    logger.info("Splitting into train/validation/test sets...")
+    X_temp, X_test, y_temp, y_test = train_test_split(
         X, y, test_size=args.test_size, random_state=args.random_state
+    )
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_temp, y_temp, test_size=0.25, random_state=args.random_state
     )
 
     logger.info(f"Training set: {len(X_train)} samples")
     logger.info(f"Validation set: {len(X_val)} samples")
+    logger.info(f"Test set: {len(X_test)} samples")
 
-    os.makedirs(args.output_path, exist_ok=True)
+    for path in [args.train_path, args.validation_path, args.test_path]:
+        os.makedirs(path, exist_ok=True)
 
     logger.info("Saving preprocessed data...")
-    X_train.to_parquet(os.path.join(args.output_path, "X_train.parquet"))
-    X_val.to_parquet(os.path.join(args.output_path, "X_val.parquet"))
-    y_train.to_frame("uplift_pct").to_parquet(os.path.join(args.output_path, "y_train.parquet"))
-    y_val.to_frame("uplift_pct").to_parquet(os.path.join(args.output_path, "y_val.parquet"))
+    # Training data
+    train_df = X_train.copy()
+    train_df["target"] = y_train.values
+    train_df.to_csv(os.path.join(args.train_path, "train.csv"), index=False)
+    
+    # Validation data  
+    val_df = X_val.copy()
+    val_df["target"] = y_val.values
+    val_df.to_csv(os.path.join(args.validation_path, "validation.csv"), index=False)
+    
+    # Test data
+    test_df = X_test.copy()
+    test_df["target"] = y_test.values
+    test_df.to_csv(os.path.join(args.test_path, "test.csv"), index=False)
 
     feature_list = list(X.columns)
-    joblib.dump(feature_list, os.path.join(args.output_path, "feature_list.pkl"))
+    joblib.dump(feature_list, os.path.join(args.train_path, "feature_list.pkl"))
     logger.info(f"Feature list saved: {feature_list}")
 
     logger.info("PREPROCESS COMPLETE")
