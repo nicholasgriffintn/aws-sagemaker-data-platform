@@ -5,6 +5,15 @@ import { Construct } from 'constructs';
 import { SageMakerPipelineProps, PipelineScriptLocations } from '../types';
 import { getScriptDirectory, getScriptFilename } from '../utils/paths';
 
+/**
+ * Construct for creating a SageMaker pipeline.
+ *
+ * Creates:
+ * - Pipeline
+ * - Pipeline Definition
+ * - Pipeline Role
+ * - Pipeline Execution Role
+ */
 export class SageMakerPipeline extends Construct {
   public readonly pipeline: CfnPipeline;
 

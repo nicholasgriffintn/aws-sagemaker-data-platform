@@ -14,6 +14,9 @@ logger = setup_logging(__name__)
 
 
 def main():
+    """
+    Trains a scikit-learn classifier (RandomForest or LogisticRegression) on the training data and validates on the validation data.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-dir', type=str, default=os.environ.get('SM_MODEL_DIR', '/opt/ml/model'))
     parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAINING', '/opt/ml/input/data/training'))

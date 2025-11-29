@@ -37,6 +37,15 @@ export interface EndpointResources {
   alertsTopic: Topic;
 }
 
+/**
+ * Construct for creating a SageMaker endpoint.
+ *
+ * Adds:
+ * - Model
+ * - Endpoint Config
+ * - Endpoint
+ * - Monitoring
+ */
 export class Endpoint extends Construct {
   public readonly resources: EndpointResources;
 

@@ -14,6 +14,9 @@ THRESHOLDS = BUCKETING_THRESHOLDS
 
 
 def main():
+    """
+    Evaluates against thresholds defined in the shared library.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-path', type=str, default='/opt/ml/processing/model')
     parser.add_argument('--test-path', type=str, default='/opt/ml/processing/test')

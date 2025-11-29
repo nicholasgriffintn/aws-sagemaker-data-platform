@@ -7,6 +7,15 @@ export interface IamStackProps extends StackProps {
 	componentName: string;
 }
 
+/**
+ * Stack for creating IAM roles for the application.
+ *
+ * Creates:
+ * - SageMaker Execution Role
+ * - SageMaker Job Role
+ * - Pipeline Role
+ * - Lambda Execution Role
+ */
 export class IamStack extends Stack {
   public sagemakerExecutionRole: Role;
   public sagemakerJobRole: Role;

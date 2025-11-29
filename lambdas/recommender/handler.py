@@ -24,11 +24,26 @@ TOP_N_DEFAULT = 5
 
 
 def load_templates():
+    """
+    Loads the template library from the template_library.json file.
+
+    Returns:
+        List of templates.
+    """
     with open(os.path.join(os.path.dirname(__file__), "template_library.json")) as f:
         return json.load(f)
 
 
 def score_candidates(candidates):
+    """
+    Scores the candidates based on the predicted uplift.
+
+    Args:
+        candidates: List of candidates.
+
+    Returns:
+        List of candidates with the predicted uplift.
+    """
     df = pd.DataFrame(candidates)
 
     payload = df.drop(columns=["template_id"]).to_json(orient="records")
@@ -47,6 +62,16 @@ def score_candidates(candidates):
 @parse_json_body
 @require_fields('goal')
 def handler(event, context):
+    """
+    Handler for the recommender lambda to score candidates based on the predicted uplift.
+
+    Args:
+        event: The event object.
+        context: The context object.
+
+    Returns:
+        The response object.
+    """
     body = event['parsed_body']
     goal = body['goal']
     

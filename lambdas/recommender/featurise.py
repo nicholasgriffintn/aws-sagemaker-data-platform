@@ -4,6 +4,16 @@ from platform_shared import SEGMENT_ENCODING
 
 
 def featurise_template(template, parsed_goal):
+    """
+    Transforms a template into a dictionary of features.
+
+    Args:
+        template: The template to transform.
+        parsed_goal: The parsed goal.
+
+    Returns:
+        Dictionary of features.
+    """
     start_time = parsed_goal.get("time_focus", 18)
 
     duration_days = template.get("duration_days", 14)

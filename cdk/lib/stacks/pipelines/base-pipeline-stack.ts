@@ -39,6 +39,17 @@ export interface MLPipelineConfig {
   lambdaEnvironment?: Record<string, string>;
 }
 
+/**
+ * Base class for creating a pipeline stack.
+ *
+ * Creates:
+ * - Pipeline
+ * - Endpoint
+ * - API
+ * - Model Auto Deploy
+ * - Dashboard
+ * - Scheduled Retraining
+ */
 export abstract class BasePipelineStack extends Stack {
   public readonly pipeline: CfnPipeline;
   public readonly endpoint: CfnEndpoint;

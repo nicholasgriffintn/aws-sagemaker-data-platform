@@ -27,6 +27,16 @@ interface PrincipalConfiguration {
   readonly tablePermissions: string[];
 }
 
+/**
+ * Stack for creating Lake Formation resources for raw and processed data.
+ *
+ * Creates:
+ * - Data Lake Settings
+ * - Dataset Tag
+ * - Database Tag Associations
+ * - Data Locations
+ * - Principals
+ */
 export class LakeFormationStack extends Stack {
   constructor(scope: Construct, id: string, props: LakeFormationStackProps) {
     super(scope, id, props);

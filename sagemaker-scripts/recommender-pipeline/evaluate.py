@@ -13,6 +13,9 @@ THRESHOLDS = RECOMMENDER_THRESHOLDS
 
 
 def main():
+    """
+    This script is used to evaluate the recommender model during training.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-path', type=str, default='/opt/ml/processing/model')
     parser.add_argument('--test-path', type=str, default='/opt/ml/processing/test')

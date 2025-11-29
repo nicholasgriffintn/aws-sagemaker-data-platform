@@ -7,6 +7,17 @@ import { Construct } from "constructs";
 
 import { EndpointMonitoringProps } from '../../../types';
 
+/**
+ * Construct for monitoring a SageMaker endpoint.
+ *
+ * Adds:
+ * - Alerts Topic
+ * - High Latency Alarm
+ * - High Error Rate Alarm
+ * - Low Invocation Alarm
+ * - Scalable Target
+ * - Scaling Policy
+ */
 export class EndpointMonitoring extends Construct {
   public readonly alertsTopic: Topic;
   public readonly highLatencyAlarm: Alarm;

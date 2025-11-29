@@ -21,10 +21,14 @@ LOCATION_WEIGHTS = [0.4, 0.15, 0.1, 0.1, 0.15, 0.1]
 
 def generate_user_bucketing_data(num_users: int = 10_000) -> pd.DataFrame:
     """
-    Generate realistic user data for experiment bucketing.
-    
-    This function creates synthetic user data that mimics real-world patterns
+    Generate synthetic user data that mimics real-world patterns
     for A/B testing and experiment bucketing scenarios.
+    
+    Features generated:
+    - Demographics: age, gender, location
+    - Behavior: session_count, avg_session_duration, page_views
+    - Value: purchase_history, total_spent, engagement_score
+    - Historical experiment assignments: previous_experiments, historical_conversion_rate
     
     Args:
         num_users: Number of user records to generate

@@ -23,6 +23,16 @@ export interface StorageStackProps extends StackProps {
   logRetentionDays?: number;
 }
 
+/**
+ * Stack for creating the storage resources for the application.
+ *
+ * Creates:
+ * - KMS key for the storage stack
+ * - Log bucket
+ * - Raw data bucket
+ * - Processed data bucket
+ * - Code bucket
+ */
 export class StorageStack extends Stack {
   public kmsKey: Key;
   public logBucket: Bucket;

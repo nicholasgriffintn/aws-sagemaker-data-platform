@@ -5,6 +5,12 @@ from typing import Any
 
 @lru_cache
 def get_config() -> dict[str, Any]:
+    """
+    Get the configuration for the platform.
+
+    Returns:
+        A dictionary containing the configuration.
+    """
     return {
         'endpoint_name': os.environ.get('ENDPOINT_NAME'),
         'feature_source': os.environ.get('FEATURE_SOURCE', 'mock'),
@@ -22,11 +28,30 @@ def get_config() -> dict[str, Any]:
 
 
 def get(key: str, default: Any = None) -> Any:
+    """
+    Get a configuration value.
+
+    Args:
+        key: The key to get.
+        default: The default value if the key is not found.
+
+    Returns:
+        The configuration value.
+    """
     config = get_config()
     return config.get(key, default)
 
 
 def require(key: str) -> Any:
+    """
+    Get a required configuration value.
+
+    Args:
+        key: The key to get.
+
+    Returns:
+        The configuration value.
+    """
     value = get(key)
     if value is None:
         raise ValueError(f"Required configuration '{key}' is not set")

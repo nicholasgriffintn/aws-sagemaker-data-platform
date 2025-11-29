@@ -7,6 +7,13 @@ export interface GlueStackProps extends StackProps {
   componentName: string;
 }
 
+/**
+ * Stack for creating Glue databases for raw and processed data.
+ *
+ * Creates:
+ * - Raw Glue Database
+ * - Processed Glue Database
+ */
 export class GlueStack extends Stack {
   public readonly rawDatabase: glue.CfnDatabase;
   public readonly rawDatabaseName: string;

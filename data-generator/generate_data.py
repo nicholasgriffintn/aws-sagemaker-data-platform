@@ -17,6 +17,15 @@ def ensure(path):
     os.makedirs(path, exist_ok=True)
 
 def generate_metadata(n: int = 1_000_000):
+    """
+    Generate metadata for experiments.
+
+    Args:
+        n: Number of experiments to generate.
+
+    Returns:
+        DataFrame containing experiment metadata.
+    """
     print(f"Generating {n} experiment metadata rows…")
 
     start_dates = np.array([
@@ -46,6 +55,16 @@ def generate_metadata(n: int = 1_000_000):
     return df
 
 def generate_results(metadata: pl.DataFrame, multiplier: int = 10):
+    """
+    Generate results for experiments.
+
+    Args:
+        metadata: DataFrame containing experiment metadata.
+        multiplier: Number of times to repeat each experiment.
+
+    Returns:
+        DataFrame containing experiment results.
+    """
     n = metadata.height
     print(f"Generating ~{n*multiplier:,} experiment result rows…")
 
@@ -77,6 +96,15 @@ def generate_results(metadata: pl.DataFrame, multiplier: int = 10):
     return df
 
 def write_parquet(df: pl.DataFrame, path: str, prefix: str, chunk=250_000):
+    """
+    Write a DataFrame to Parquet files.
+
+    Args:
+        df: DataFrame to write.
+        path: Path to write the files.
+        prefix: Prefix for the file names.
+        chunk: Number of rows to write in each chunk.
+    """
     ensure(path)
     total = df.height // chunk + 1
     for i in range(total):
@@ -90,6 +118,9 @@ def write_parquet(df: pl.DataFrame, path: str, prefix: str, chunk=250_000):
         )
 
 def main():
+    """
+    Generate data for experiments and bucketing.
+    """
     out_meta = "output/raw/experiments/metadata"
     out_results = "output/raw/experiments/results"
 

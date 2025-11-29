@@ -17,6 +17,9 @@ def load_parquet(path):
 
 
 def main():
+    """
+    Uses XGBoost for regression to predict uplift percentages:
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--train_path", type=str, default="/opt/ml/input/data/training/")
     parser.add_argument("--model_dir", type=str, default="/opt/ml/model/")

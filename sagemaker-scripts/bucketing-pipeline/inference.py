@@ -21,12 +21,27 @@ REQUIRED_FEATURES = USER_FEATURE_NAMES
 
 
 class BucketingInferenceHandler(BaseInferenceHandler):
+    """
+    Handler for the bucketing inference pipeline.
+    """
     def __init__(self):
+        """
+        Initializes the bucketing inference handler.
+        """
         super().__init__(logger)
         self.feature_transformer = None
         self.is_pipeline = False
 
     def model_fn(self, model_dir: str):
+        """
+        Loads the model from the model directory.
+
+        Args:
+            model_dir: The path to the model directory.
+
+        Returns:
+            The loaded model.
+        """
         model = joblib.load(os.path.join(model_dir, 'model.pkl'))
         logger.info(f"Model loaded successfully: {type(model).__name__}")
         
@@ -44,6 +59,16 @@ class BucketingInferenceHandler(BaseInferenceHandler):
         return model
 
     def input_fn(self, request_body: str, request_content_type: str) -> pd.DataFrame:
+        """
+        Triggers the input function to validate the input data and return a DataFrame.
+
+        Args:
+            request_body: The request body.
+            request_content_type: The content type of the request.
+
+        Returns:
+            A DataFrame containing the input data.
+        """
         if request_content_type != 'application/json':
             raise ValueError(f"Unsupported content type: {request_content_type}")
         
@@ -63,6 +88,15 @@ class BucketingInferenceHandler(BaseInferenceHandler):
         return df[REQUIRED_FEATURES]
 
     def _validate_input_data(self, df: pd.DataFrame) -> None:
+        """
+        Validates the input data against the user feature validation rules.
+
+        Args:
+            df: The DataFrame containing the input data.
+
+        Returns:
+            None
+        """
         for col, rules in USER_FEATURE_VALIDATION.items():
             if col not in df.columns:
                 continue
@@ -83,6 +117,16 @@ class BucketingInferenceHandler(BaseInferenceHandler):
                     logger.warning(f"Unknown values in {col}: {invalid_values}")
 
     def predict_fn(self, input_data: pd.DataFrame, model) -> list[dict]:
+        """
+        Predicts the bucket for the input data.
+
+        Args:
+            input_data: The input data.
+            model: The model.
+
+        Returns:
+            A list of dictionaries containing the predicted bucket and confidence.
+        """
         if self.is_pipeline:
             X = input_data
             model_version = 'unified_pipeline'
@@ -112,6 +156,16 @@ class BucketingInferenceHandler(BaseInferenceHandler):
         return results
 
     def _assign_experiment(self, prediction: int, high_value_prob: float) -> dict:
+        """
+        Assigns an experiment to the input data based on the predicted bucket and confidence.
+
+        Args:
+            prediction: The predicted bucket.
+            high_value_prob: The confidence in the predicted bucket.
+
+        Returns:
+            A dictionary containing the experiment assignment.
+        """
         if prediction == 1:
             if high_value_prob > 0.8:
                 return {

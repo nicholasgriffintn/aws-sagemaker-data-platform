@@ -9,6 +9,15 @@ logger = logging.getLogger(__name__)
 
 
 def handle_errors(func: Callable) -> Callable:
+    """
+    Handle errors in the handler.
+
+    Args:
+        func: The function to handle errors for.
+
+    Returns:
+        The wrapped function.
+    """
     @functools.wraps(func)
     def wrapper(event: dict, context: Any) -> dict:
         try:
@@ -30,6 +39,15 @@ def handle_errors(func: Callable) -> Callable:
 
 
 def log_request(func: Callable) -> Callable:
+    """
+    Log the request.
+
+    Args:
+        func: The function to log the request for.
+
+    Returns:
+        The wrapped function.
+    """
     @functools.wraps(func)
     def wrapper(event: dict, context: Any) -> dict:
         request_id = getattr(context, 'aws_request_id', 'unknown')
@@ -47,6 +65,15 @@ def log_request(func: Callable) -> Callable:
 
 
 def parse_json_body(func: Callable) -> Callable:
+    """
+    Parse the JSON body of the request.
+
+    Args:
+        func: The function to parse the JSON body for.
+
+    Returns:
+        The wrapped function.
+    """
     @functools.wraps(func)
     def wrapper(event: dict, context: Any) -> dict:
         body_str = event.get('body', '{}')
@@ -60,6 +87,15 @@ def parse_json_body(func: Callable) -> Callable:
 
 
 def require_fields(*required: str) -> Callable:
+    """
+    Require certain fields in the request body.
+
+    Args:
+        *required: The fields to require.
+
+    Returns:
+        The wrapped function.
+    """
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
         def wrapper(event: dict, context: Any) -> dict:

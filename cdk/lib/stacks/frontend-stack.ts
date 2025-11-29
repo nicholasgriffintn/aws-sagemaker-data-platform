@@ -22,8 +22,12 @@ export interface FrontendStackProps extends StackProps {
 /**
  * Frontend Documentation Stack
  *
- * Deploys the static documentation site to S3 with CloudFront distribution.
- * API URLs are injected at deployment time for the playground.
+ * Creates:
+ * - S3 bucket for hosting the static site
+ * - CloudFront distribution for the static site
+ * - Origin Access Identity for CloudFront
+ * - Bucket Deployment for the static site files
+ * - Outputs for the website URL, distribution ID, and bucket name
  */
 export class FrontendStack extends Stack {
   public readonly distribution: cloudfront.Distribution;

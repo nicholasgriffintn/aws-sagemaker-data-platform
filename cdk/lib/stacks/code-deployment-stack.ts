@@ -9,6 +9,12 @@ export interface CodeDeploymentStackProps extends StackProps {
 	readonly codeBucket: Bucket;
 }
 
+/**
+ * Stack for deploying code to the code bucket.
+ *
+ * Creates:
+ * - Bucket Deployment for SageMaker scripts
+ */
 export class CodeDeploymentStack extends Stack {
 	public readonly sagemakerScriptsDeployment: BucketDeployment;
 

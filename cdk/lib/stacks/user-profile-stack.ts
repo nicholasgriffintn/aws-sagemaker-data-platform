@@ -10,6 +10,13 @@ export interface UserProfileStackProps extends StackProps {
   readonly securityGroup: SecurityGroup;
 }
 
+/**
+ * Stack for creating a user profile for the Sagemaker Studio domain.
+ *
+ * Creates:
+ * - User profile for the root user
+ * - Outputs for the user profile name
+ */
 export class UserProfileStack extends Stack {
   public userProfile: CfnUserProfile;
 

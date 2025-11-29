@@ -15,6 +15,15 @@ BEDROCK_MODEL_ID = get('bedrock_model_id', 'anthropic.claude-3-haiku-20240307-v1
 
 
 def parse_goal(goal: str) -> dict:
+    """
+    Parses a goal into a dictionary of features according to the business goal.
+
+    Args:
+        goal: The goal to parse.
+
+    Returns:
+        Dictionary of features.
+    """
     if USE_BEDROCK:
         try:
             return parse_goal_with_bedrock(goal)
@@ -26,6 +35,15 @@ def parse_goal(goal: str) -> dict:
 
 
 def parse_goal_regex(goal: str) -> dict:
+    """
+    Parses a goal into a dictionary of features using regex if Bedrock parsing fails or is not enabled.
+
+    Args:
+        goal: The goal to parse.
+
+    Returns:
+        Dictionary of features.
+    """
     goal_lower = goal.lower()
 
     result = {
@@ -76,6 +94,15 @@ def parse_goal_regex(goal: str) -> dict:
 
 
 def parse_goal_with_bedrock(goal: str) -> dict:
+    """
+    Parses a goal into a dictionary of features using Bedrock.
+
+    Args:
+        goal: The goal to parse.
+
+    Returns:
+        Dictionary of features.
+    """
     import boto3
     
     bedrock = boto3.client('bedrock-runtime')

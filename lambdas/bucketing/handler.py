@@ -19,6 +19,16 @@ predictor = SageMakerPredictor(require('endpoint_name'))
 @parse_json_body
 @require_fields('user_id')
 def handler(event, context):
+    """
+    Handler for the bucketing lambda to predict a user's bucket.
+
+    Args:
+        event: The event object.
+        context: The context object.
+
+    Returns:
+        The response object.
+    """
     body = event['parsed_body']
     user_id = body['user_id']
 
@@ -42,5 +52,14 @@ def handler(event, context):
 
 
 def predict_bucket(features: dict) -> dict:
+    """
+    Predict a user's bucket based on their features.
+
+    Args:
+        features: Dictionary containing user features.
+
+    Returns:
+        Dictionary containing the predicted bucket and confidence.
+    """
     payload = [{k: features.get(k) for k in USER_FEATURE_NAMES}]
     return predictor.predict(payload)

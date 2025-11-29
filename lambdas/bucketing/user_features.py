@@ -14,6 +14,15 @@ AWS_REGION = os.environ.get('AWS_REGION', 'eu-west-1')
 
 
 def get_user_features(user_id: str) -> Optional[dict]:
+    """
+    Get user features from the appropriate source.
+
+    Args:
+        user_id: The ID of the user.
+
+    Returns:
+        Dictionary containing the user features.
+    """
     if FEATURE_SOURCE == "dynamodb":
         return _get_from_dynamodb(user_id)
     elif FEATURE_SOURCE == "feature_store":
@@ -23,6 +32,15 @@ def get_user_features(user_id: str) -> Optional[dict]:
 
 
 def _get_from_dynamodb(user_id: str) -> Optional[dict]:
+    """
+    Get user features from DynamoDB.
+
+    Args:
+        user_id: The ID of the user.
+
+    Returns:
+        Dictionary containing the user features.
+    """
     try:
         dynamodb = boto3.resource("dynamodb")
         table = dynamodb.Table(DYNAMODB_TABLE)
@@ -41,6 +59,15 @@ def _get_from_dynamodb(user_id: str) -> Optional[dict]:
 
 
 def _get_from_feature_store(user_id: str) -> Optional[dict]:
+    """
+    Get user features from Feature Store.
+
+    Args:
+        user_id: The ID of the user.
+
+    Returns:
+        Dictionary containing the user features.
+    """
     try:
         featurestore_runtime = boto3.client(
             'sagemaker-featurestore-runtime',
@@ -72,6 +99,15 @@ def _get_from_feature_store(user_id: str) -> Optional[dict]:
 
 
 def _normalize_features(raw_features: dict) -> dict:
+    """
+    Normalize user features to match the expected input for the bucketing model.
+
+    Args:
+        raw_features: Dictionary containing the raw user features.
+
+    Returns:
+        Dictionary containing the normalized user features.
+    """
     defaults = USER_FEATURE_DEFAULTS
     return {
         "user_id": str(raw_features.get("user_id", "")),
@@ -89,6 +125,15 @@ def _normalize_features(raw_features: dict) -> dict:
 
 
 def _get_mock_features(user_id: str) -> Optional[dict]:
+    """
+    Get mock user features for testing and development.
+
+    Args:
+        user_id: The ID of the user.
+
+    Returns:
+        Dictionary containing the mock user features.
+    """
     user_hash = hash(user_id) % 100
     
     if user_hash < 20:

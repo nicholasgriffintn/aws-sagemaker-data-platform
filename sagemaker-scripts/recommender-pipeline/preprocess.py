@@ -28,7 +28,6 @@ def load_parquet_files(directory):
     parquet_files = glob.glob(os.path.join(directory, "**/*.parquet"), recursive=True)
     
     if not parquet_files:
-        # Try direct path if no files found in directory
         if os.path.isfile(directory):
             return pq.read_table(directory).to_pandas()
         raise FileNotFoundError(f"No parquet files found in {directory}")
@@ -55,7 +54,6 @@ def numeric_cast(df):
 def main():
     """Preprocess experiment data for recommender model training."""
     parser = argparse.ArgumentParser()
-    # SageMaker standard paths
     parser.add_argument("--input_path", type=str, 
                         default=os.environ.get("SM_CHANNEL_TRAINING", "/opt/ml/processing/input"))
     parser.add_argument("--output_path", type=str, 
@@ -100,7 +98,6 @@ def main():
     y_train.to_frame("uplift_pct").to_parquet(os.path.join(args.output_path, "y_train.parquet"))
     y_val.to_frame("uplift_pct").to_parquet(os.path.join(args.output_path, "y_val.parquet"))
 
-    # Save feature list for inference
     feature_list = list(X.columns)
     joblib.dump(feature_list, os.path.join(args.output_path, "feature_list.pkl"))
     logger.info(f"Feature list saved: {feature_list}")

@@ -23,8 +23,21 @@ logger = setup_logging(__name__)
 
 
 class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
+    """
+    Feature engineering transformer for the bucketing pipeline.
+    
+    Key transformations:
+    - Engineered features: spend_per_purchase, session_efficiency
+    - Age bucketing: young, adult, middle_aged, senior
+    - Spending tiers: none, low, medium, high
+    - Label encoding for categorical variables
+    - StandardScaler normalization
+    """
     
     def __init__(self):
+        """
+        Initializes the feature engineering transformer.
+        """
         self.label_encoders = {}
         self.scaler = StandardScaler()
         self.feature_columns = None
@@ -32,6 +45,16 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         self.spending_bins = SPENDING_BINS
         
     def fit(self, X, y=None):
+        """
+        Fits the transformer on training data.
+
+        Args:
+            X: The training data.
+            y: The target data.
+
+        Returns:
+            The fitted transformer.
+        """
         df = X.copy()
         
         df = self._create_engineered_features(df)
@@ -58,6 +81,15 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, X):
+        """
+        Transforms the input data using the fitted transformer.
+
+        Args:
+            X: The input data.
+
+        Returns:
+            A DataFrame containing the transformed data.
+        """
         df = X.copy()
         
         df = self._create_engineered_features(df)
@@ -69,6 +101,15 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         return pd.DataFrame(X_scaled, columns=self.feature_columns, index=X.index)
     
     def _create_engineered_features(self, df):
+        """
+        Creates engineered features for the input data.
+
+        Args:
+            df: The input data.
+
+        Returns:
+            A DataFrame containing the engineered features.
+        """
         df['spend_per_purchase'] = np.where(
             df['purchase_history'] > 0, 
             df['total_spent'] / df['purchase_history'], 
@@ -92,6 +133,15 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         return df
     
     def _encode_features(self, df):
+        """
+        Encodes categorical features.
+
+        Args:
+            df: The input data.
+
+        Returns:
+            A DataFrame containing the encoded features.
+        """
         categorical_features = ['gender', 'location', 'age_group', 'spending_tier']
         
         for feature in categorical_features:
@@ -107,6 +157,15 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
 
 
 def main():
+    """
+    Preprocess the data for the bucketing pipeline.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--input-data', type=str, default='/opt/ml/processing/input')
     parser.add_argument('--train-data', type=str, default='/opt/ml/processing/train')
@@ -145,7 +204,6 @@ def main():
     X_raw_temp, X_raw_test, y_temp, y_test = train_test_split(
         X_raw, y, test_size=0.2, random_state=42, stratify=y
     )
-    
     X_raw_train, X_raw_val, y_train, y_val = train_test_split(
         X_raw_temp, y_temp, test_size=0.25, random_state=42, stratify=y_temp
     )

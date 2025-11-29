@@ -116,6 +116,7 @@ export function createCorsEnabledApi(
 
 /**
  * Helper function to add method with API key requirement.
+ * Use this when creating new methods that require API key authentication.
  */
 export function addSecureMethod(
   resource: apigw.Resource,

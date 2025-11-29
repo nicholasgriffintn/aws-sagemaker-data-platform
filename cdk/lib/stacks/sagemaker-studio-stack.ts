@@ -17,6 +17,13 @@ export interface SagemakerStudioStackProps extends StackProps {
   private: boolean;
 }
 
+/**
+ * Stack for creating a Sagemaker Studio domain.
+ *
+ * Creates:
+ * - Sagemaker Studio domain
+ * - Outputs for the domain ID
+ */
 export class SagemakerStudioStack extends Stack {
   public domain: CfnDomain;
 

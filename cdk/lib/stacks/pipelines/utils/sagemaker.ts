@@ -1,3 +1,6 @@
+/**
+ * Get the SageMaker image URI for a given region.
+ */
 export const getSageMakerImageUri = (region: string): string => {
   const imageMap: Record<string, string> = {
     'us-east-1':

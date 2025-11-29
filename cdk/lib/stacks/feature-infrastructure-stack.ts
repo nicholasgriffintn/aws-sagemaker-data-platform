@@ -22,7 +22,7 @@ export interface FeatureInfrastructureStackProps extends StackProps {
 /**
  * Feature Infrastructure Stack
  *
- * Creates infrastructure for user feature storage:
+ * Creates:
  * - DynamoDB table for real-time user features
  * - SageMaker Feature Store for ML-optimized features
  */

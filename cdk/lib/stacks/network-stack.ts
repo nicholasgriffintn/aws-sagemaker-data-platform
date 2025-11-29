@@ -14,6 +14,15 @@ export interface NetworkStackProps extends StackProps {
 	private: boolean;
 }
 
+/**
+ * Stack for creating the network resources for the application.
+ *
+ * Creates:
+ * - VPC
+ * - Sagemaker Studio Security Group
+ * - Interface Endpoints
+ * - Gateway Endpoints
+ */
 export class NetworkStack extends Stack {
 	public readonly vpc: Vpc;
 	public readonly sagemakerStudioSg: SecurityGroup;

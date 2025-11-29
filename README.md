@@ -4,54 +4,211 @@ A modular AWS SageMaker platform that provides shared infrastructure for multipl
 
 ## Overview
 
-- **User Bucketing Pipeline** - Classifies users for experiment assignment using SageMaker pipelines
-- **ML Recommender Pipeline** - Recommendation engine for suggesting experiments using historical uplift data
+### User Bucketing Pipeline
+
+Classifies users for experiment assignment using SageMaker pipelines
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ML Pipeline Layer                                  │
-│  ┌───────────────────────────────┐    ┌───────────────────────────────────┐ │
-│  │     Bucketing Pipeline        │    │     Recommender Pipeline          │ │
-│  │  ├─ SageMaker Pipeline        │    │   ├─ SageMaker Pipeline           │ │
-│  │  ├─ Model Registry            │    │   ├─ Model Registry               │ │
-│  │  ├─ Inference Endpoint        │    │   ├─ Inference Endpoint           │ │
-│  │  ├─ API Gateway (secured)     │    │   ├─ API Gateway (secured)        │ │
-│  │  ├─ Lambda (VPC + X-Ray)      │    │   ├─ Lambda (VPC + X-Ray)         │ │
-│  │  ├─ CloudWatch Dashboard      │    │   ├─ CloudWatch Dashboard         │ │
-│  │  └─ Scheduled Retraining      │    │   └─ Scheduled Retraining         │ │
-│  └───────────────────────────────┘    └───────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      Operations Layer                                        │
-│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────────────────┐ │
-│  │ Model Auto-Deploy│  │  SNS Alerts      │  │ EventBridge Rules          │ │
-│  │ (EventBridge)    │  │  (Email)         │  │ (Scheduled Retraining)     │ │
-│  └──────────────────┘  └──────────────────┘  └────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Feature Infrastructure Layer                              │
-│  ┌────────────────────────┐    ┌──────────────────────────────────────────┐ │
-│  │ DynamoDB               │    │ SageMaker Feature Store                  │ │
-│  │ (Real-time Features)   │    │ (ML-optimized Features)                  │ │
-│  └────────────────────────┘    └──────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    Shared Infrastructure Layer                               │
-│  ┌──────────┐ ┌──────────┐ ┌────────────────────┐ ┌──────────────────────┐  │
-│  │ Network  │ │   IAM    │ │ Storage            │ │ Lake Formation       │  │
-│  │ (VPC)    │ │ (Roles)  │ │ (S3+KMS+Lifecycle) │ │ (Data Governance)    │  │
-│  └──────────┘ └──────────┘ └────────────────────┘ └──────────────────────┘  │
-│  ┌──────────┐ ┌──────────┐ ┌─────────────────────────────────────────────┐  │
-│  │   Glue   │ │ SageMaker│ │       Code Deployment                       │  │
-│  │ (Catalog)│ │  Studio  │ │      (S3 Scripts Sync)                      │  │
-│  └──────────┘ └──────────┘ └─────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────┐    ┌─────────────────┐    ┌────────────────────┐
+│ Data Generator │───▶│  S3 Raw Bucket   │───▶│ SageMaker Pipeline │
+│  (Python)      │    │                  │    │                    │
+└──────────────┘    └─────────────────┘    └────────────────────┘
+                                                       │
+                    ┌──────────────────────────────────┘
+                    ▼
+        ┌────────────────────────────────────────────────────┐
+        │              Pipeline Steps                        │
+        │  1. DataPreprocessing (Processing Job)             │
+        │     - Feature engineering                          │
+        │     - Train/validation/test split                  │
+        │     - Normalization & encoding                     │
+        │                                                    │
+        │  2. ModelTraining (Training Job)                   │
+        │     - RandomForest or LogisticRegression           │
+        │     - Hyperparameter: n_estimators, max_depth      │
+        │                                                    │
+        │  3. ModelEvaluation (Processing Job)               │
+        │     - Accuracy, Precision, Recall, AUC             │
+        │     - Generates model_approval.json                │
+        │                                                    │
+        │  4. CheckModelApproval (Condition)                 │
+        │     - If approved → RegisterModel                  │
+        │     - If rejected → Fail                           │
+        └────────────────────────────────────────────────────┘
+                    │
+                    ▼ (If Approved)
+        ┌────────────────────────────────────────────────────┐
+        │         Model Registry                             │
+        │  - Model Package Group                             │
+        │  - Version tracked                                 │
+        │  - Auto-deploy to endpoint via EventBridge         │
+        └────────────────────────────────────────────────────┘
+                    │
+                    ▼
+        ┌────────────────────────────────────────────────────┐
+        │          Real-Time Inference                        │
+        │                                                     │
+        │  Client ─▶ API Gateway ─▶ Lambda ─▶ SageMaker      │
+        │              │              │         Endpoint      │
+        │              │              │             │         │
+        │         API Key        Fetch User    Predict        │
+        │         Auth           Features      Bucket         │
+        │                                                     │
+        │  Response: { bucket, confidence, experiment_assign }│
+        └────────────────────────────────────────────────────┘
+```
+
+### ML Recommender Pipeline
+
+Recommendation engine for suggesting experiments using historical uplift data
+
+```
+┌──────────────┐    ┌─────────────────┐    ┌────────────────────┐
+│ Data Generator │───▶│  S3 Raw Bucket   │───▶│ SageMaker Pipeline │
+│  (Python)      │    │  experiments/    │    │                    │
+│                │    │  - metadata/     │    │                    │
+│  generates:    │    │  - results/      │    │                    │
+│  - experiments │    │                  │    │                    │
+│  - uplifts     │    │                  │    │                    │
+└──────────────┘    └─────────────────┘    └────────────────────┘
+                                                       │
+                    ┌──────────────────────────────────┘
+                    ▼
+        ┌────────────────────────────────────────────────────┐
+        │              Pipeline Steps                        │
+        │                                                    │
+        │  1. DataPreprocessing (Processing Job)             │
+        │     - Join metadata + results                      │
+        │     - Extract experiment features:                 │
+        │       • num_variants, duration_days                │
+        │       • start_hour, day_of_week, month             │
+        │       • surface, platform, content_scope           │
+        │       • segment_encoded, is_personalised           │
+        │     - Calculate uplift percentages                 │
+        │     - Train/validation split                       │
+        │                                                    │
+        │  2. ModelTraining (Training Job)                   │
+        │     - XGBoost Regressor                            │
+        │     - Hyperparameters:                             │
+        │       • max_depth=8, eta=0.05                      │
+        │       • subsample=0.8, colsample_bytree=0.8        │
+        │       • num_boost_round=400                        │
+        │     - Predicts: uplift_pct                         │
+        │                                                    │
+        │  3. ModelEvaluation (Processing Job)               │
+        │     - RMSE, MAE, R² metrics                        │
+        │     - Thresholds:                                  │
+        │       • RMSE ≤ 5.0                                 │
+        │       • MAE ≤ 3.0                                  │
+        │       • R² ≥ 0.6                                   │
+        │     - Generates model_approval.json                │
+        │                                                    │
+        │  4. CheckModelApproval (Condition)                 │
+        │     - If approved → RegisterModel                  │
+        │     - If rejected → Fail                           │
+        └────────────────────────────────────────────────────┘
+                    │
+                    ▼ (If Approved)
+        ┌────────────────────────────────────────────────────┐
+        │         Model Registry                             │
+        │  - Model Package Group: *-recommender-models       │
+        │  - XGBoost model artifact (model.bst)              │
+        │  - Feature list (feature_list.pkl)                 │
+        │  - Auto-deploy via EventBridge                     │
+        └────────────────────────────────────────────────────┘
+                    │
+                    ▼
+        ┌────────────────────────────────────────────────────┐
+        │          Real-Time Inference                        │
+        │                                                     │
+        │  ┌─────────────────────────────────────────────┐   │
+        │  │ Step 1: Goal Parsing                        │   │
+        │  │                                             │   │
+        │  │  Input: "increase live news at 18:00        │   │
+        │  │          for 16-25s"                        │   │
+        │  │                                             │   │
+        │  │  ┌─────────────┐    ┌─────────────────┐    │   │
+        │  │  │ Regex Parser│ or │ Bedrock (Claude) │    │   │
+        │  │  │  (default)  │    │  (if enabled)   │    │   │
+        │  │  └─────────────┘    └─────────────────┘    │   │
+        │  │                                             │   │
+        │  │  Output: {                                  │   │
+        │  │    segment: "16_25",                        │   │
+        │  │    metric: "live_news_18_consumption",      │   │
+        │  │    time_focus: 18                           │   │
+        │  │  }                                          │   │
+        │  └─────────────────────────────────────────────┘   │
+        │                      │                              │
+        │                      ▼                              │
+        │  ┌─────────────────────────────────────────────┐   │
+        │  │ Step 2: Template Loading                    │   │
+        │  │                                             │   │
+        │  │  Load from template_library.json:           │   │
+        │  │  [                                          │   │
+        │  │    { id: "live_news_push_16_25",            │   │
+        │  │      description: "Push reminder...",       │   │
+        │  │      surface: "push", segment: "16_25",     │   │
+        │  │      ... },                                 │   │
+        │  │    { id: "homepage_layout_test", ... },     │   │
+        │  │    ...                                      │   │
+        │  │  ]                                          │   │
+        │  └─────────────────────────────────────────────┘   │
+        │                      │                              │
+        │                      ▼                              │
+        │  ┌─────────────────────────────────────────────┐   │
+        │  │ Step 3: Featurisation                       │   │
+        │  │                                             │   │
+        │  │  For each template, compute features:       │   │
+        │  │  - num_variants, duration_days              │   │
+        │  │  - start_hour_of_day, start_day_of_week     │   │
+        │  │  - surface, platform, content_scope         │   │
+        │  │  - experiment_type, segment_encoded         │   │
+        │  │  - is_personalised, is_algorithm_change     │   │
+        │  │  - is_copy_only, uses_notifications         │   │
+        │  │                                             │   │
+        │  │  Match parsed goal to template properties   │   │
+        │  └─────────────────────────────────────────────┘   │
+        │                      │                              │
+        │                      ▼                              │
+        │  ┌─────────────────────────────────────────────┐   │
+        │  │ Step 4: Scoring (SageMaker Endpoint)        │   │
+        │  │                                             │   │
+        │  │  Lambda ───▶ SageMaker Endpoint             │   │
+        │  │              (XGBoost model)                │   │
+        │  │                    │                        │   │
+        │  │                    ▼                        │   │
+        │  │  Predict uplift_pct for each candidate     │   │
+        │  │                                             │   │
+        │  │  candidates = [                             │   │
+        │  │    { template_id, features, predicted: 0.12},│   │
+        │  │    { template_id, features, predicted: 0.08},│   │
+        │  │    { template_id, features, predicted: 0.05},│   │
+        │  │    ...                                      │   │
+        │  │  ]                                          │   │
+        │  └─────────────────────────────────────────────┘   │
+        │                      │                              │
+        │                      ▼                              │
+        │  ┌─────────────────────────────────────────────┐   │
+        │  │ Step 5: Ranking & Response                  │   │
+        │  │                                             │   │
+        │  │  Sort by predicted_uplift DESC              │   │
+        │  │  Return top_n (default: 5)                  │   │
+        │  │                                             │   │
+        │  │  Response:                                  │   │
+        │  │  {                                          │   │
+        │  │    "goal": "increase live news...",         │   │
+        │  │    "parsed": { segment, metric, time_focus},│   │
+        │  │    "recommendations": [                     │   │
+        │  │      {                                      │   │
+        │  │        "template_id": "live_news_push_16_25"│   │
+        │  │        "description": "Push reminder...",   │   │
+        │  │        "predicted_uplift": 0.12             │   │
+        │  │      },                                     │   │
+        │  │      ...                                    │   │
+        │  │    ]                                        │   │
+        │  │  }                                          │   │
+        │  └─────────────────────────────────────────────┘   │
+        └────────────────────────────────────────────────────┘
 ```
 
 ## Setup
