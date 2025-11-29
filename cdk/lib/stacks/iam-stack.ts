@@ -8,12 +8,13 @@ export interface IamStackProps extends StackProps {
 }
 
 export class IamStack extends Stack {
-	public sagemakerExecutionRole: Role;
-	public sagemakerJobRole: Role;
+  public sagemakerExecutionRole: Role;
+  public sagemakerJobRole: Role;
   public pipelineRole: Role;
+  public lambdaExecutionRole: Role;
 
-	constructor(scope: Construct, id: string, props: IamStackProps) {
-		super(scope, id, props);
+  constructor(scope: Construct, id: string, props: IamStackProps) {
+    super(scope, id, props);
 
     const stack = Stack.of(this);
     const sagemakerLogGroupArn = stack.formatArn({
@@ -33,56 +34,69 @@ export class IamStack extends Stack {
       resource: 'catalog',
     });
 
-    this.sagemakerExecutionRole = new Role(this, `${ props.componentName }-${ props.environmentName }-studio-exec-role`, {
-      assumedBy: new ServicePrincipal('sagemaker.amazonaws.com'),
-      roleName: `${ props.componentName }-studio-exec-role`,
-      managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName('AmazonSageMakerFullAccess'),
-      ],
-    });
+    this.sagemakerExecutionRole = new Role(
+      this,
+      `${props.componentName}-${props.environmentName}-studio-exec-role`,
+      {
+        assumedBy: new ServicePrincipal('sagemaker.amazonaws.com'),
+        roleName: `${props.componentName}-studio-exec-role`,
+        managedPolicies: [
+          ManagedPolicy.fromAwsManagedPolicyName('AmazonSageMakerFullAccess'),
+        ],
+      }
+    );
 
-    this.sagemakerJobRole = new Role(this, `${ props.componentName }-${ props.environmentName }-sm-job-role`, {
-      roleName: `${ props.componentName }-sm-job-role`,
-      assumedBy: new ServicePrincipal('sagemaker.amazonaws.com'),
-      managedPolicies: [
-        ManagedPolicy.fromAwsManagedPolicyName('AmazonEC2ContainerRegistryReadOnly')
-      ]
-    });
-    this.sagemakerJobRole.addToPolicy(new PolicyStatement({
-      actions: [
-        'logs:CreateLogGroup',
-        'logs:CreateLogStream',
-        'logs:PutLogEvents',
-      ],
-      resources: [
-        sagemakerLogGroupArn,
-        sagemakerLogStreamArn,
-      ],
-    }));
-    this.sagemakerJobRole.addToPolicy(new PolicyStatement({
-      actions: [
-        'ecr:GetAuthorizationToken'
-      ],
-      resources: [ '*' ],
-    }));
-    this.sagemakerJobRole.addToPolicy(new PolicyStatement({
-      actions: [
-        'lakeformation:GetDataAccess',
-      ],
-      resources: [ glueCatalogArn ],
-    }));
+    this.sagemakerJobRole = new Role(
+      this,
+      `${props.componentName}-${props.environmentName}-sm-job-role`,
+      {
+        roleName: `${props.componentName}-sm-job-role`,
+        assumedBy: new ServicePrincipal('sagemaker.amazonaws.com'),
+        managedPolicies: [
+          ManagedPolicy.fromAwsManagedPolicyName(
+            'AmazonEC2ContainerRegistryReadOnly'
+          ),
+        ],
+      }
+    );
+    this.sagemakerJobRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'logs:CreateLogGroup',
+          'logs:CreateLogStream',
+          'logs:PutLogEvents',
+        ],
+        resources: [sagemakerLogGroupArn, sagemakerLogStreamArn],
+      })
+    );
+    this.sagemakerJobRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['ecr:GetAuthorizationToken'],
+        resources: ['*'],
+      })
+    );
+    this.sagemakerJobRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['lakeformation:GetDataAccess'],
+        resources: [glueCatalogArn],
+      })
+    );
 
-    this.sagemakerExecutionRole.addToPolicy(new PolicyStatement({
-      actions: [
-        'lakeformation:GetDataAccess',
-      ],
-      resources: [ glueCatalogArn ],
-    }));
+    this.sagemakerExecutionRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['lakeformation:GetDataAccess'],
+        resources: [glueCatalogArn],
+      })
+    );
 
-    this.pipelineRole = new Role(this, `${ props.componentName }-${ props.environmentName }-pipeline-role`, {
-      roleName: `${ props.componentName }-pipeline-role`,
-      assumedBy: new ServicePrincipal('sagemaker.amazonaws.com'),
-    });
+    this.pipelineRole = new Role(
+      this,
+      `${props.componentName}-${props.environmentName}-pipeline-role`,
+      {
+        roleName: `${props.componentName}-pipeline-role`,
+        assumedBy: new ServicePrincipal('sagemaker.amazonaws.com'),
+      }
+    );
     this.pipelineRole.addToPolicy(
       new PolicyStatement({
         actions: [
@@ -135,26 +149,142 @@ export class IamStack extends Stack {
         resources: ['*'],
       })
     );
-    this.pipelineRole.addToPolicy(new PolicyStatement({
-      actions: [
-        'logs:CreateLogGroup',
-        'logs:CreateLogStream',
-        'logs:PutLogEvents',
-      ],
-      resources: [
-        sagemakerLogGroupArn,
-        sagemakerLogStreamArn,
-      ],
-    }));
-    this.pipelineRole.addToPolicy(new PolicyStatement({
-      actions: [
-        'lakeformation:GetDataAccess',
-      ],
-      resources: [ glueCatalogArn ],
-    }));
-    this.pipelineRole.addToPolicy(new PolicyStatement({
-      actions: [ 'iam:PassRole' ],
-      resources: [ this.sagemakerJobRole.roleArn ],
-    }));
-	}
+    this.pipelineRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'logs:CreateLogGroup',
+          'logs:CreateLogStream',
+          'logs:PutLogEvents',
+        ],
+        resources: [sagemakerLogGroupArn, sagemakerLogStreamArn],
+      })
+    );
+    this.pipelineRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['lakeformation:GetDataAccess'],
+        resources: [glueCatalogArn],
+      })
+    );
+    this.pipelineRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['iam:PassRole'],
+        resources: [this.sagemakerJobRole.roleArn],
+      })
+    );
+
+    // Lambda Execution Role for API Lambdas
+    // Dedicated role with permissions for DynamoDB, Feature Store, Bedrock, and SageMaker endpoints
+    this.lambdaExecutionRole = new Role(
+      this,
+      `${props.componentName}-${props.environmentName}-lambda-exec-role`,
+      {
+        roleName: `${props.componentName}-lambda-exec-role`,
+        assumedBy: new ServicePrincipal('lambda.amazonaws.com'),
+        managedPolicies: [
+          ManagedPolicy.fromAwsManagedPolicyName(
+            'service-role/AWSLambdaBasicExecutionRole'
+          ),
+        ],
+      }
+    );
+
+    // SageMaker endpoint invocation
+    this.lambdaExecutionRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['sagemaker:InvokeEndpoint', 'sagemaker:DescribeEndpoint'],
+        resources: [
+          stack.formatArn({
+            service: 'sagemaker',
+            resource: 'endpoint',
+            resourceName: `${props.componentName}-*`,
+          }),
+        ],
+      })
+    );
+
+    // DynamoDB access for user features
+    this.lambdaExecutionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'dynamodb:GetItem',
+          'dynamodb:Query',
+          'dynamodb:Scan',
+          'dynamodb:BatchGetItem',
+        ],
+        resources: [
+          stack.formatArn({
+            service: 'dynamodb',
+            resource: 'table',
+            resourceName: `${props.componentName}-*`,
+          }),
+        ],
+      })
+    );
+
+    // SageMaker Feature Store access
+    this.lambdaExecutionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'sagemaker:GetRecord',
+          'sagemaker:BatchGetRecord',
+          'sagemaker:DescribeFeatureGroup',
+        ],
+        resources: [
+          stack.formatArn({
+            service: 'sagemaker',
+            resource: 'feature-group',
+            resourceName: `${props.componentName}-*`,
+          }),
+        ],
+      })
+    );
+
+    // Amazon Bedrock access for goal parsing
+    this.lambdaExecutionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'bedrock:InvokeModel',
+          'bedrock:InvokeModelWithResponseStream',
+        ],
+        resources: [
+          // Allow invoking any Bedrock foundation model
+          stack.formatArn({
+            service: 'bedrock',
+            resource: 'inference-profile',
+            resourceName: '*',
+            arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
+          }),
+          // Claude models
+          'arn:aws:bedrock:*::foundation-model/anthropic.claude-*',
+          // Allow cross-region inference profiles
+          `arn:aws:bedrock:*:${stack.account}:inference-profile/*`,
+        ],
+      })
+    );
+
+    // CloudWatch Logs for debugging
+    this.lambdaExecutionRole.addToPolicy(
+      new PolicyStatement({
+        actions: [
+          'logs:CreateLogGroup',
+          'logs:CreateLogStream',
+          'logs:PutLogEvents',
+        ],
+        resources: [
+          stack.formatArn({
+            service: 'logs',
+            resource: 'log-group',
+            resourceName: `/aws/lambda/${props.componentName}-*`,
+            arnFormat: ArnFormat.COLON_RESOURCE_NAME,
+          }),
+          stack.formatArn({
+            service: 'logs',
+            resource: 'log-group',
+            resourceName: `/aws/lambda/${props.componentName}-*:log-stream:*`,
+            arnFormat: ArnFormat.COLON_RESOURCE_NAME,
+          }),
+        ],
+      })
+    );
+  }
 }

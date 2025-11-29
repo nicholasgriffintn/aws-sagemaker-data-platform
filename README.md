@@ -17,8 +17,17 @@ A modular AWS SageMaker platform that provides shared infrastructure for multipl
 │  │  └─ API Gateway + Lambda│    │   └─ API Gateway + Lambda   │ │
 │  └─────────────────────────┘    └─────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
-                                │
-                                ▼
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 Feature Infrastructure Layer                     │
+│  ┌──────────────────────┐    ┌──────────────────────────────┐   │
+│  │ DynamoDB             │    │ SageMaker Feature Store      │   │
+│  │ (Real-time Features) │    │ (ML-optimized Features)      │   │
+│  └──────────────────────┘    └──────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                 Shared Infrastructure Layer                      │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────────────┐  │
@@ -231,6 +240,35 @@ make train-recommender
 # Train bucketing model
 make train-bucketing
 ```
+
+## Configuration Options
+
+### Feature Sources (User Bucketing)
+
+The bucketing Lambda supports multiple feature sources, configured via environment variables:
+
+| Source | Env Var Value | Description |
+|--------|---------------|-------------|
+| Mock | `FEATURE_SOURCE=mock` | Synthetic data for development (default) |
+| DynamoDB | `FEATURE_SOURCE=dynamodb` | Real-time features from DynamoDB |
+| Feature Store | `FEATURE_SOURCE=feature_store` | SageMaker Feature Store for ML features |
+
+Additional configuration:
+- `DYNAMODB_TABLE`: DynamoDB table name (default: `user-features`)
+- `FEATURE_GROUP_NAME`: SageMaker Feature Group name (default: `user-bucketing-features`)
+
+### Goal Parser (ML Recommender)
+
+The recommender Lambda can parse goals using regex (fast) or Amazon Bedrock (flexible):
+
+| Parser | Env Var | Description |
+|--------|---------|-------------|
+| Regex | `USE_BEDROCK_PARSER=false` | Fast, deterministic pattern matching (default) |
+| Bedrock | `USE_BEDROCK_PARSER=true` | AI-powered natural language understanding |
+
+When using Bedrock:
+- `BEDROCK_MODEL_ID`: Model to use
+- Requires appropriate IAM permissions for `bedrock:InvokeModel`
 
 ## Adding New ML Pipelines
 

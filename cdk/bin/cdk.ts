@@ -12,6 +12,7 @@ import { LakeFormationStack } from '../lib/stacks/lakeformation-stack';
 import { SagemakerStudioStack } from '../lib/stacks/sagemaker-studio-stack';
 import { UserProfileStack } from '../lib/stacks/user-profile-stack';
 import { CodeDeploymentStack } from '../lib/stacks/code-deployment-stack';
+import { FeatureInfrastructureStack } from '../lib/stacks/feature-infrastructure-stack';
 import { ExperimentPipelineStack } from '../lib/stacks/pipelines/experiment-pipeline-stack';
 import { RecommenderPipelineStack } from '../lib/stacks/pipelines/recommender-pipeline-stack';
 
@@ -158,6 +159,26 @@ new UserProfileStack(app, `${cfg.componentName}-UserProfile-${envName}`, {
   securityGroup: network.sagemakerStudioSg,
 });
 
+// Feature Infrastructure (DynamoDB + Feature Store)
+const featureInfra = new FeatureInfrastructureStack(
+  app,
+  `${cfg.componentName}-FeatureInfra-${envName}`,
+  {
+    env,
+    environmentName: envName,
+    componentName: cfg.componentName,
+    kmsKey: storage.kmsKey,
+    offlineStoreBucket: storage.processedDataBucket,
+    sagemakerExecutionRole: iam.sagemakerExecutionRole,
+  }
+);
+featureInfra.addDependency(storage);
+featureInfra.addDependency(iam);
+
+// Grant Lambda role access to the DynamoDB table and KMS key
+featureInfra.userFeaturesTable.grantReadData(iam.lambdaExecutionRole);
+storage.kmsKey.grantDecrypt(iam.lambdaExecutionRole);
+
 // User Bucketing Pipeline
 // Uses SageMaker pipelines for preprocessing, training, and inference
 // Includes API Gateway for user bucketing
@@ -175,11 +196,14 @@ const experimentPipeline = new ExperimentPipelineStack(
     codeBucket: storage.codeBucket,
     dataKey: storage.kmsKey,
     pipelineRole: iam.pipelineRole,
-    lambdaExecutionRole: iam.pipelineRole,
+    lambdaExecutionRole: iam.lambdaExecutionRole,
+    userFeaturesTableName: featureInfra.userFeaturesTable.tableName,
+    featureGroupName: featureInfra.featureGroupName,
   }
 );
 experimentPipeline.addDependency(lakeFormation);
 experimentPipeline.addDependency(codeDeployment);
+experimentPipeline.addDependency(featureInfra);
 
 // ML Experiment Recommender Pipeline
 // Uses SageMaker pipelines for preprocessing, training, and inference
@@ -198,8 +222,9 @@ const recommenderPipeline = new RecommenderPipelineStack(
     codeBucket: storage.codeBucket,
     dataKey: storage.kmsKey,
     pipelineRole: iam.pipelineRole,
-    lambdaExecutionRole: iam.pipelineRole,
+    lambdaExecutionRole: iam.lambdaExecutionRole,
   }
 );
 recommenderPipeline.addDependency(lakeFormation);
 recommenderPipeline.addDependency(codeDeployment);
+recommenderPipeline.addDependency(featureInfra);

@@ -1,4 +1,4 @@
-import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
+import { CfnOutput, Duration, Stack, StackProps } from 'aws-cdk-lib';
 import { SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
 import { Role } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
@@ -24,6 +24,8 @@ export interface ExperimentPipelineStackProps extends StackProps {
   readonly dataKey: Key;
   readonly pipelineRole: Role;
   readonly lambdaExecutionRole: Role;
+  readonly userFeaturesTableName: string;
+  readonly featureGroupName: string;
 }
 
 /**
@@ -110,14 +112,29 @@ export class ExperimentPipelineStack extends Stack {
     this.bucketingEndpoint = endpoint.resources.endpoint;
 
     // Lambda function for user bucketing API
+    // Bundles dependencies from requirements.txt
     const bucketingLambda = new lambda.Function(this, 'BucketingLambda', {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'handler.handler',
-      code: lambda.Code.fromAsset('lambdas/bucketing'),
+      code: lambda.Code.fromAsset('lambdas/bucketing', {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+          command: [
+            'bash',
+            '-c',
+            'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output',
+          ],
+        },
+      }),
       role: props.lambdaExecutionRole,
+      timeout: Duration.seconds(30),
+      memorySize: 256,
       environment: {
         ENDPOINT_NAME: endpoint.resources.endpoint.endpointName!,
-        FEATURE_SOURCE: 'mock', // Change to 'dynamodb' when ready
+        FEATURE_SOURCE: 'mock',
+        DYNAMODB_TABLE: props.userFeaturesTableName,
+        FEATURE_GROUP_NAME: props.featureGroupName,
+        AWS_REGION: this.region,
       },
     });
 

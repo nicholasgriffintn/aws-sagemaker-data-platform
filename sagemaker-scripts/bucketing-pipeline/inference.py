@@ -3,6 +3,7 @@
 Inference script for user bucketing pipeline.
 
 Handles real-time inference requests for user bucketing predictions.
+Supports both Pipeline models (with preprocessing) and standalone classifiers.
 """
 
 import json
@@ -22,12 +23,34 @@ REQUIRED_FEATURES = [
     'historical_conversion_rate', 'gender', 'location'
 ]
 
+# Global model and transformer references
+MODEL = None
+FEATURE_TRANSFORMER = None
+IS_PIPELINE = False
+
 
 def model_fn(model_dir):
     """Load model for inference."""
+    global MODEL, FEATURE_TRANSFORMER, IS_PIPELINE
+    
     try:
         model = joblib.load(os.path.join(model_dir, 'model.pkl'))
         logger.info(f"Model loaded successfully: {type(model).__name__}")
+        
+        # Check if it's a Pipeline (includes preprocessing)
+        IS_PIPELINE = isinstance(model, Pipeline)
+        MODEL = model
+        
+        if not IS_PIPELINE:
+            # Try to load the feature transformer separately
+            transformer_path = os.path.join(model_dir, 'feature_transformer.pkl')
+            if os.path.exists(transformer_path):
+                FEATURE_TRANSFORMER = joblib.load(transformer_path)
+                logger.info("Feature transformer loaded for standalone model")
+            else:
+                logger.warning("No feature transformer found - model expects pre-processed features")
+                FEATURE_TRANSFORMER = None
+        
         return model
     except Exception as e:
         logger.error(f"Error loading model: {str(e)}")
@@ -92,12 +115,25 @@ def _validate_input_data(df):
 
 def predict_fn(input_data, model):
     """Make predictions using the model."""
+    global FEATURE_TRANSFORMER, IS_PIPELINE
+    
     try:
-        if not isinstance(model, Pipeline):
-            raise ValueError("Expected a Pipeline model but got standalone classifier.")
+        # Prepare data based on model type
+        if IS_PIPELINE:
+            # Pipeline includes preprocessing, use raw data
+            X = input_data
+            model_version = 'unified_pipeline'
+        elif FEATURE_TRANSFORMER is not None:
+            # Apply feature transformer before prediction
+            X = FEATURE_TRANSFORMER.transform(input_data)
+            model_version = 'transformer_plus_model'
+        else:
+            # Assume data is already processed
+            X = input_data
+            model_version = 'standalone_model'
         
-        predictions = model.predict(input_data)
-        probabilities = model.predict_proba(input_data)
+        predictions = model.predict(X)
+        probabilities = model.predict_proba(X)
         
         results = []
         for i, (pred, prob) in enumerate(zip(predictions, probabilities)):
@@ -108,7 +144,7 @@ def predict_fn(input_data, model):
                 'high_value_probability': float(prob[1]),
                 'standard_probability': float(prob[0]),
                 'experiment_assignment': _assign_experiment(pred, prob[1]),
-                'model_version': 'unified_pipeline'
+                'model_version': model_version
             }
             results.append(result)
         

@@ -1,4 +1,4 @@
-import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
+import { CfnOutput, Duration, Stack, StackProps } from 'aws-cdk-lib';
 import { SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
 import { Role } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
@@ -118,10 +118,23 @@ export class RecommenderPipelineStack extends Stack {
     const recommenderLambda = new lambda.Function(this, 'RecommenderLambda', {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'handler.handler',
-      code: lambda.Code.fromAsset('lambdas/recommender'),
+      code: lambda.Code.fromAsset('lambdas/recommender', {
+        bundling: {
+          image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+          command: [
+            'bash',
+            '-c',
+            'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output',
+          ],
+        },
+      }),
       role: props.lambdaExecutionRole,
+      timeout: Duration.seconds(30),
+      memorySize: 512,
       environment: {
         ENDPOINT_NAME: endpoint.resources.endpoint.endpointName!,
+        USE_BEDROCK_PARSER: 'false',
+        BEDROCK_MODEL_ID: 'anthropic.claude-3-haiku-20240307-v1:0',
       },
     });
 

@@ -3,6 +3,7 @@ import { CfnPipeline } from 'aws-cdk-lib/aws-sagemaker';
 import { Construct } from 'constructs';
 
 import { SageMakerPipelineProps, PipelineScriptLocations } from '../types';
+import { getScriptDirectory, getScriptFilename } from '../utils/paths';
 
 export class SageMakerPipeline extends Construct {
   public readonly pipeline: CfnPipeline;
@@ -16,6 +17,10 @@ export class SageMakerPipeline extends Construct {
       evaluation: props.scriptLocations?.evaluation ?? 'evaluation.py',
       inference: props.scriptLocations?.inference ?? 'inference.py',
     };
+
+    // Extract script directory for S3 paths (all scripts should be in same directory)
+    const scriptDirectory = getScriptDirectory(scripts.preprocessing);
+    const codeS3Uri = `s3://${props.codeBucket.bucketName}/${scriptDirectory}/`;
 
     const defaults = {
       inputDataUrl: `s3://${props.rawDataBucket.bucketName}/${props.pipelineName}/data/`,
@@ -105,7 +110,9 @@ export class SageMakerPipeline extends Construct {
               ImageUri: props.sagemakerImageUri,
               ContainerEntrypoint: [
                 'python3',
-                `/opt/ml/processing/code/${scripts.preprocessing}`,
+                `/opt/ml/processing/code/${getScriptFilename(
+                  scripts.preprocessing
+                )}`,
               ],
             },
             RoleArn: props.pipelineRole.roleArn,
@@ -126,7 +133,7 @@ export class SageMakerPipeline extends Construct {
                 InputName: 'code',
                 AppManaged: false,
                 S3Input: {
-                  S3Uri: `s3://${props.codeBucket.bucketName}/sagemaker-scripts/`,
+                  S3Uri: codeS3Uri,
                   LocalPath: '/opt/ml/processing/code',
                   S3DataType: 'S3Prefix',
                   S3InputMode: 'File',
@@ -215,10 +222,12 @@ export class SageMakerPipeline extends Construct {
               n_estimators: { Get: 'Parameters.NEstimators' },
               max_depth: { Get: 'Parameters.MaxDepth' },
               random_state: '42',
+              sagemaker_program: getScriptFilename(scripts.training),
+              sagemaker_submit_directory: codeS3Uri,
             },
             Environment: {
-              SAGEMAKER_PROGRAM: scripts.training,
-              SAGEMAKER_SUBMIT_DIRECTORY: `s3://${props.codeBucket.bucketName}/`,
+              SAGEMAKER_PROGRAM: getScriptFilename(scripts.training),
+              SAGEMAKER_SUBMIT_DIRECTORY: codeS3Uri,
             },
             VpcConfig: {
               SecurityGroupIds: [props.securityGroup.securityGroupId],
@@ -226,7 +235,8 @@ export class SageMakerPipeline extends Construct {
                 (subnet) => subnet.subnetId
               ),
             },
-            EnableNetworkIsolation: true,
+            // Network isolation disabled to allow S3 access for scripts and dependencies
+            EnableNetworkIsolation: false,
           },
         },
         {
@@ -244,7 +254,9 @@ export class SageMakerPipeline extends Construct {
               ImageUri: props.sagemakerImageUri,
               ContainerEntrypoint: [
                 'python3',
-                `/opt/ml/processing/code/${scripts.evaluation}`,
+                `/opt/ml/processing/code/${getScriptFilename(
+                  scripts.evaluation
+                )}`,
               ],
             },
             RoleArn: props.pipelineRole.roleArn,
@@ -253,7 +265,10 @@ export class SageMakerPipeline extends Construct {
                 InputName: 'model',
                 AppManaged: false,
                 S3Input: {
-                  S3Uri: `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/models`,
+                  // Use the model artifacts from the training step
+                  S3Uri: {
+                    Get: 'Steps.ModelTraining.ModelArtifacts.S3ModelArtifacts',
+                  },
                   LocalPath: '/opt/ml/processing/model',
                   S3DataType: 'S3Prefix',
                   S3InputMode: 'File',
@@ -267,6 +282,18 @@ export class SageMakerPipeline extends Construct {
                   LocalPath: '/opt/ml/processing/test',
                   S3DataType: 'S3Prefix',
                   S3InputMode: 'File',
+                },
+              },
+              {
+                InputName: 'code',
+                AppManaged: false,
+                S3Input: {
+                  S3Uri: codeS3Uri,
+                  LocalPath: '/opt/ml/processing/code',
+                  S3DataType: 'S3Prefix',
+                  S3InputMode: 'File',
+                  S3DataDistributionType: 'FullyReplicated',
+                  S3CompressionType: 'None',
                 },
               },
             ],
@@ -325,8 +352,10 @@ export class SageMakerPipeline extends Construct {
                           Get: 'Steps.ModelTraining.ModelArtifacts.S3ModelArtifacts',
                         },
                         Environment: {
-                          SAGEMAKER_PROGRAM: scripts.inference,
-                          SAGEMAKER_SUBMIT_DIRECTORY: `s3://${props.codeBucket.bucketName}/`,
+                          SAGEMAKER_PROGRAM: getScriptFilename(
+                            scripts.inference
+                          ),
+                          SAGEMAKER_SUBMIT_DIRECTORY: codeS3Uri,
                         },
                       },
                     ],

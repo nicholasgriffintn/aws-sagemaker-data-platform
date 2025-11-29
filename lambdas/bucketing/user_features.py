@@ -2,60 +2,120 @@
 User Features Module
 
 Fetches user features for bucketing predictions.
-Currently uses mock data - extend to connect to your feature store,
-database, or cache (e.g., DynamoDB, Redis, SageMaker Feature Store).
+Supports multiple data sources:
+- mock: Synthetic data for development/testing
+- dynamodb: Real-time features from DynamoDB
+- feature_store: SageMaker Feature Store for ML features
 """
 
 import boto3
 import os
+import logging
 from typing import Optional
 
-# TODO: Configure your feature source
+logger = logging.getLogger(__name__)
+
+# Configuration
 FEATURE_SOURCE = os.environ.get("FEATURE_SOURCE", "mock")
 DYNAMODB_TABLE = os.environ.get("DYNAMODB_TABLE", "user-features")
+FEATURE_GROUP_NAME = os.environ.get("FEATURE_GROUP_NAME", "user-bucketing-features")
+AWS_REGION = os.environ.get("AWS_REGION", "eu-west-1")
 
 
 def get_user_features(user_id: str) -> Optional[dict]:
     """
     Fetch user features by user_id.
     
-    Extend this function to integrate with your data sources:
-    - DynamoDB for real-time features
-    - SageMaker Feature Store for ML features
-    - Redis/ElastiCache for cached features
-    - API call to your user service
+    Supports multiple data sources configured via FEATURE_SOURCE env var:
+    - "mock": Synthetic data for development
+    - "dynamodb": Real-time features from DynamoDB
+    - "feature_store": SageMaker Feature Store for ML features
+    
+    Args:
+        user_id: Unique identifier for the user
+        
+    Returns:
+        dict of user features or None if not found
     """
     if FEATURE_SOURCE == "dynamodb":
         return _get_from_dynamodb(user_id)
-    elif FEATURE_SOURCE == "mock":
-        return _get_mock_features(user_id)
+    elif FEATURE_SOURCE == "feature_store":
+        return _get_from_feature_store(user_id)
     else:
         return _get_mock_features(user_id)
 
 
 def _get_from_dynamodb(user_id: str) -> Optional[dict]:
     """Fetch features from DynamoDB."""
-    dynamodb = boto3.resource("dynamodb")
-    table = dynamodb.Table(DYNAMODB_TABLE)
-    
-    response = table.get_item(Key={"user_id": user_id})
-    
-    if "Item" not in response:
+    try:
+        dynamodb = boto3.resource("dynamodb")
+        table = dynamodb.Table(DYNAMODB_TABLE)
+        
+        response = table.get_item(Key={"user_id": user_id})
+        
+        if "Item" not in response:
+            logger.warning(f"User {user_id} not found in DynamoDB")
+            return None
+        
+        item = response["Item"]
+        return _normalize_features(item)
+    except Exception as e:
+        logger.error(f"Error fetching from DynamoDB: {e}")
         return None
+
+
+def _get_from_feature_store(user_id: str) -> Optional[dict]:
+    """
+    Fetch features from SageMaker Feature Store.
     
-    item = response["Item"]
+    Requires the feature group to have been created with the appropriate schema.
+    See: https://docs.aws.amazon.com/sagemaker/latest/dg/feature-store.html
+    """
+    try:
+        featurestore_runtime = boto3.client(
+            'sagemaker-featurestore-runtime',
+            region_name=AWS_REGION
+        )
+        
+        response = featurestore_runtime.get_record(
+            FeatureGroupName=FEATURE_GROUP_NAME,
+            RecordIdentifierValueAsString=user_id
+        )
+        
+        if "Record" not in response:
+            logger.warning(f"User {user_id} not found in Feature Store")
+            return None
+        
+        # Convert Feature Store response to dict
+        features = {}
+        for feature in response["Record"]:
+            feature_name = feature["FeatureName"]
+            value = feature["ValueAsString"]
+            features[feature_name] = value
+        
+        return _normalize_features(features)
+    except featurestore_runtime.exceptions.ResourceNotFoundException:
+        logger.warning(f"Feature group {FEATURE_GROUP_NAME} not found")
+        return None
+    except Exception as e:
+        logger.error(f"Error fetching from Feature Store: {e}")
+        return None
+
+
+def _normalize_features(raw_features: dict) -> dict:
+    """Normalize features to expected types."""
     return {
-        "user_id": item.get("user_id"),
-        "age": int(item.get("age", 30)),
-        "gender": item.get("gender", "M"),
-        "location": item.get("location", "US"),
-        "session_count": int(item.get("session_count", 0)),
-        "avg_session_duration": float(item.get("avg_session_duration", 0)),
-        "page_views": int(item.get("page_views", 0)),
-        "purchase_history": int(item.get("purchase_history", 0)),
-        "total_spent": float(item.get("total_spent", 0)),
-        "engagement_score": float(item.get("engagement_score", 0)),
-        "historical_conversion_rate": float(item.get("historical_conversion_rate", 0)),
+        "user_id": str(raw_features.get("user_id", "")),
+        "age": int(float(raw_features.get("age", 30))),
+        "gender": str(raw_features.get("gender", "M")),
+        "location": str(raw_features.get("location", "US")),
+        "session_count": int(float(raw_features.get("session_count", 0))),
+        "avg_session_duration": float(raw_features.get("avg_session_duration", 0)),
+        "page_views": int(float(raw_features.get("page_views", 0))),
+        "purchase_history": int(float(raw_features.get("purchase_history", 0))),
+        "total_spent": float(raw_features.get("total_spent", 0)),
+        "engagement_score": float(raw_features.get("engagement_score", 0)),
+        "historical_conversion_rate": float(raw_features.get("historical_conversion_rate", 0)),
     }
 
 
