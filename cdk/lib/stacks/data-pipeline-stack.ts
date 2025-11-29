@@ -113,6 +113,7 @@ export class DataPipelineStack extends Stack {
         action: 'startPipelineExecution',
         parameters: {
           PipelineName: props.bucketingPipelineName,
+          ClientRequestToken: sfn.JsonPath.uuid(),
         },
         iamResources: [
           `arn:aws:sagemaker:${this.region}:${this.account}:pipeline/${props.bucketingPipelineName}`,
@@ -129,6 +130,7 @@ export class DataPipelineStack extends Stack {
         action: 'startPipelineExecution',
         parameters: {
           PipelineName: props.recommenderPipelineName,
+          ClientRequestToken: sfn.JsonPath.uuid(),
         },
         iamResources: [
           `arn:aws:sagemaker:${this.region}:${this.account}:pipeline/${props.recommenderPipelineName}`,
@@ -175,6 +177,7 @@ export class DataPipelineStack extends Stack {
         action: 'startPipelineExecution',
         parameters: {
           PipelineName: props.recommenderPipelineName,
+          ClientRequestToken: sfn.JsonPath.uuid(),
         },
         iamResources: [
           `arn:aws:sagemaker:${this.region}:${this.account}:pipeline/${props.recommenderPipelineName}`,
@@ -244,6 +247,7 @@ export class DataPipelineStack extends Stack {
         action: 'startPipelineExecution',
         parameters: {
           PipelineName: props.bucketingPipelineName,
+          ClientRequestToken: sfn.JsonPath.uuid(),
         },
         iamResources: [
           `arn:aws:sagemaker:${this.region}:${this.account}:pipeline/${props.bucketingPipelineName}`,
@@ -259,6 +263,7 @@ export class DataPipelineStack extends Stack {
         action: 'startPipelineExecution',
         parameters: {
           PipelineName: props.recommenderPipelineName,
+          ClientRequestToken: sfn.JsonPath.uuid(),
         },
         iamResources: [
           `arn:aws:sagemaker:${this.region}:${this.account}:pipeline/${props.recommenderPipelineName}`,

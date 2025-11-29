@@ -58,6 +58,7 @@ export class ScheduledRetraining extends Construct {
             sfn.JsonPath.stringAt('$$.Execution.StartTime')
           ),
           PipelineExecutionDescription: 'Scheduled retraining execution',
+          ClientRequestToken: sfn.JsonPath.uuid(),
         },
         iamResources: ['*'],
         resultPath: '$.pipelineExecution',
