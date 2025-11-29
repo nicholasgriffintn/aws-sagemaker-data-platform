@@ -1,6 +1,6 @@
 # Common operations for development and deployment
 
-.PHONY: install build deploy destroy generate-data upload-data train package-model upload-model update-endpoint recommend clean help
+.PHONY: install build deploy destroy generate-data upload-data train package-model upload-model update-endpoint recommend clean help build-frontend inject-config
 
 # ---- Configuration ----
 BUCKET ?= aws-ml-platform-dev-processed-data-bucket
@@ -36,6 +36,11 @@ help:
 	@echo "Recommender API:"
 	@echo "  make recommend        Test the recommender API"
 	@echo ""
+	@echo "Frontend:"
+	@echo "  make build-frontend   Build the documentation frontend"
+	@echo "  make dev-frontend     Run frontend in development mode"
+	@echo "  make inject-config    Inject API URLs into frontend config"
+	@echo ""
 	@echo "Configuration:"
 	@echo "  BUCKET=bucket-name    Set S3 bucket (default: $(BUCKET))"
 	@echo "  API=api-url           Set API Gateway URL"
@@ -44,12 +49,14 @@ help:
 # ---- Basic Setup ----
 install:
 	pnpm install
-	pip install -r data-generator/requirements.txt
-	pip install -r glue/requirements.txt
-	pip install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
-	pip install -r sagemaker-scripts/recommender-pipeline/requirements.txt
-	pip install -r lambdas/bucketing/requirements.txt
-	pip install -r lambdas/recommender/requirements.txt
+	cd frontend && pnpm install
+	cd ../
+	pip3 install -r data-generator/requirements.txt
+	pip3 install -r glue/requirements.txt
+	pip3 install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
+	pip3 install -r sagemaker-scripts/recommender-pipeline/requirements.txt
+	pip3 install -r lambdas/bucketing/requirements.txt
+	pip3 install -r lambdas/recommender/requirements.txt
 
 build:
 	pnpm run build
@@ -57,6 +64,7 @@ build:
 clean:
 	rm -rf cdk.out dist node_modules
 	rm -rf data-generator/output
+	rm -rf frontend/node_modules frontend/.next frontend/out
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
 
@@ -134,3 +142,20 @@ recommend:
 	curl -X POST https://$(API)/recommend \
 		-H "Content-Type: application/json" \
 		-d '{"goal": "increase live news at 18:00 for 16-25s"}'
+
+# ---- Frontend ----
+install-frontend:
+	cd frontend && pnpm install
+
+inject-config:
+	cd frontend && node scripts/inject-config.js $(ENVIRONMENT)
+
+build-frontend: install-frontend inject-config
+	cd frontend && pnpm run build
+
+dev-frontend: install-frontend
+	cd frontend && pnpm run dev
+
+# Full deployment including frontend
+deploy-all: build build-frontend
+	pnpm run cdk deploy -c env=$(ENVIRONMENT) --all --require-approval never

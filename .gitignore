@@ -138,3 +138,6 @@ dist
 
 cdk.out
 cdk.context.json
+
+
+.pnpm-store/

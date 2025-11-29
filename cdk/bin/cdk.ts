@@ -15,6 +15,7 @@ import { CodeDeploymentStack } from '../lib/stacks/code-deployment-stack';
 import { FeatureInfrastructureStack } from '../lib/stacks/feature-infrastructure-stack';
 import { ExperimentPipelineStack } from '../lib/stacks/pipelines/experiment-pipeline-stack';
 import { RecommenderPipelineStack } from '../lib/stacks/pipelines/recommender-pipeline-stack';
+import { FrontendStack } from '../lib/stacks/frontend-stack';
 
 interface EnvConfig {
   componentName: string;
@@ -228,3 +229,20 @@ const recommenderPipeline = new RecommenderPipelineStack(
 recommenderPipeline.addDependency(lakeFormation);
 recommenderPipeline.addDependency(codeDeployment);
 recommenderPipeline.addDependency(featureInfra);
+
+// Documentation Frontend
+// Deployed as a static site on S3 with CloudFront
+// Build the frontend first with: make build-frontend
+const frontend = new FrontendStack(
+  app,
+  `${cfg.componentName}-Frontend-${envName}`,
+  {
+    env,
+    environmentName: envName,
+    componentName: cfg.componentName,
+    bucketingApiUrl: experimentPipeline.api.url,
+    recommenderApiUrl: recommenderPipeline.api.url,
+  }
+);
+frontend.addDependency(experimentPipeline);
+frontend.addDependency(recommenderPipeline);
