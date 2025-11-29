@@ -183,6 +183,10 @@ export class SageMakerPipeline extends Construct {
               ],
             },
           },
+          CacheConfig: {
+            Enabled: true,
+            ExpireAfter: '30d',
+          },
         },
         {
           Name: 'ModelTraining',
@@ -246,6 +250,10 @@ export class SageMakerPipeline extends Construct {
               ),
             },
             EnableNetworkIsolation: false,
+          },
+          CacheConfig: {
+            Enabled: true,
+            ExpireAfter: '30d',
           },
         },
         {
@@ -318,6 +326,10 @@ export class SageMakerPipeline extends Construct {
                 },
               ],
             },
+          },
+          CacheConfig: {
+            Enabled: true,
+            ExpireAfter: '30d',
           },
           PropertyFiles: [
             {
