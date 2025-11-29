@@ -1,15 +1,18 @@
 import json
 import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
 
 import pandas as pd
 
-from config import require
-from decorators import handle_errors, log_request, parse_json_body, require_fields
-from response import api_response, error_response
-from sagemaker_client import SageMakerPredictor
+from platform_shared import (
+    require,
+    handle_errors,
+    log_request,
+    parse_json_body,
+    require_fields,
+    api_response,
+    error_response,
+    SageMakerPredictor,
+)
 from goal_parser import parse_goal
 from featurise import featurise_template
 

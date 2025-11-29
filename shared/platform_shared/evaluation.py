@@ -58,11 +58,6 @@ class ModelEvaluator:
         return self._metrics_tracker.compute_regression_metrics(y_true, y_pred)
 
     def check_approval(self, thresholds: dict[str, tuple[str, float]]) -> dict:
-        """
-        Args:
-            thresholds: Dict mapping metric name to (operator, threshold_value)
-                        operator is 'min' (>=) or 'max' (<=)
-        """
         approval_criteria = {}
         
         for metric_name, (operator, threshold) in thresholds.items():
@@ -100,3 +95,4 @@ class ModelEvaluator:
         
         status = 'APPROVE' if approval_recommendation['approve_model'] else 'REJECT'
         self.logger.info(f"Model approval recommendation: {status}")
+

@@ -1,1 +1,2 @@
--r ../shared/requirements.txt
+-e ../../shared
+boto3>=1.34.0

@@ -1,13 +1,14 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
-
-from config import require
-from decorators import handle_errors, log_request, parse_json_body, require_fields
-from response import api_response, error_response
-from sagemaker_client import SageMakerPredictor
-from schemas import USER_FEATURE_NAMES
+from platform_shared import (
+    require,
+    handle_errors,
+    log_request,
+    parse_json_body,
+    require_fields,
+    api_response,
+    error_response,
+    SageMakerPredictor,
+    USER_FEATURE_NAMES,
+)
 from user_features import get_user_features
 
 predictor = SageMakerPredictor(require('endpoint_name'))

@@ -1,13 +1,9 @@
-# Common operations for development and deployment
-
 .PHONY: install build deploy destroy generate-data upload-data train package-model upload-model update-endpoint recommend clean help build-frontend inject-config
 
-# ---- Configuration ----
 BUCKET ?= aws-ml-platform-dev-processed-data-bucket
 API ?= your-api-gateway-url.execute-api.eu-west-1.amazonaws.com
 ENVIRONMENT ?= dev
 
-# ---- Help ----
 help:
 	@echo "AWS ML Platform - Available Commands"
 	@echo "====================================="
@@ -46,16 +42,14 @@ help:
 	@echo "  API=api-url           Set API Gateway URL"
 	@echo "  ENVIRONMENT=env       Set environment (default: $(ENVIRONMENT))"
 
-# ---- Basic Setup ----
 install:
 	pnpm install
 	cd frontend && pnpm install
-	cd ../
+	pip3 install -e shared
 	pip3 install -r data-generator/requirements.txt
 	pip3 install -r glue/requirements.txt
 	pip3 install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
 	pip3 install -r sagemaker-scripts/recommender-pipeline/requirements.txt
-	pip3 install -r lambdas/shared/requirements.txt
 	pip3 install -r lambdas/bucketing/requirements.txt
 	pip3 install -r lambdas/recommender/requirements.txt
 
@@ -71,8 +65,8 @@ clean:
 	rm -rf frontend/node_modules frontend/.next frontend/out
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 
-# ---- CDK Deployment ----
 deploy:
 	pnpm run build
 	pnpm run cdk deploy -c env=$(ENVIRONMENT) --all --require-approval never
@@ -80,7 +74,6 @@ deploy:
 destroy:
 	pnpm run cdk destroy -c env=$(ENVIRONMENT) --all --force
 
-# ---- Data Generation ----
 generate-data:
 	cd data-generator && python main.py all
 
@@ -102,7 +95,6 @@ upload-bucketing-data:
 	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
 	cd data-generator && python main.py bucketing --upload --bucket $(BUCKET)
 
-# ---- Training ----
 train-recommender:
 	@echo "Preprocessing recommender data..."
 	python sagemaker-scripts/recommender-pipeline/preprocess.py \
@@ -140,14 +132,12 @@ update-endpoint:
 		--endpoint-name aws-ml-platform-$(ENVIRONMENT)-recommender-endpoint \
 		--endpoint-config-name aws-ml-platform-$(ENVIRONMENT)-recommender-endpoint-config
 
-# ---- Recommender API ----
 recommend:
 	@if [ -z "$(API)" ]; then echo "Error: API not set"; exit 1; fi
 	curl -X POST https://$(API)/recommend \
 		-H "Content-Type: application/json" \
 		-d '{"goal": "increase live news at 18:00 for 16-25s"}'
 
-# ---- Frontend ----
 install-frontend:
 	cd frontend && pnpm install
 
@@ -160,6 +150,5 @@ build-frontend: install-frontend inject-config
 dev-frontend: install-frontend
 	cd frontend && pnpm run dev
 
-# Full deployment including frontend
 deploy-all: build build-frontend
 	pnpm run cdk deploy -c env=$(ENVIRONMENT) --all --require-approval never

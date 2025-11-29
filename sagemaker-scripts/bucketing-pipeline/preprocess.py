@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import sys
 
 import pandas as pd
 import numpy as np
@@ -10,10 +9,8 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.base import BaseEstimator, TransformerMixin
 import joblib
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
-
-from training import setup_logging
-from schemas import (
+from platform_shared import (
+    setup_logging,
     AGE_BINS,
     AGE_LABELS,
     SPENDING_BINS,
@@ -35,7 +32,6 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         self.spending_bins = SPENDING_BINS
         
     def fit(self, X, y=None):
-        """Fit the transformer on training data."""
         df = X.copy()
         
         df = self._create_engineered_features(df)
@@ -62,7 +58,6 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         return self
     
     def transform(self, X):
-        """Transform new data using fitted parameters."""
         df = X.copy()
         
         df = self._create_engineered_features(df)
@@ -97,7 +92,6 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         return df
     
     def _encode_features(self, df):
-        """Encode categorical features."""
         categorical_features = ['gender', 'location', 'age_group', 'spending_tier']
         
         for feature in categorical_features:
@@ -113,7 +107,6 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
 
 
 def main():
-    """Preprocess user bucketing data for model training."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--input-data', type=str, default='/opt/ml/processing/input')
     parser.add_argument('--train-data', type=str, default='/opt/ml/processing/train')
@@ -149,7 +142,6 @@ def main():
     
     logger.info(f"Target distribution: {y.value_counts().to_dict()}")
     
-    # Split data
     X_raw_temp, X_raw_test, y_temp, y_test = train_test_split(
         X_raw, y, test_size=0.2, random_state=42, stratify=y
     )
@@ -162,7 +154,6 @@ def main():
     logger.info(f"Validation set size: {len(X_raw_val)}")
     logger.info(f"Test set size: {len(X_raw_test)}")
     
-    # Fit transformer and transform data
     feature_transformer = FeatureEngineeringTransformer()
     feature_transformer.fit(X_raw_train)
     
@@ -172,7 +163,6 @@ def main():
     
     logger.info(f"Features after transformation: {len(feature_transformer.feature_columns)}")
     
-    # Save processed data
     os.makedirs(args.train_data, exist_ok=True)
     os.makedirs(args.validation_data, exist_ok=True)
     os.makedirs(args.test_data, exist_ok=True)
@@ -189,7 +179,6 @@ def main():
     test_df['target'] = y_test.values
     test_df.to_csv(os.path.join(args.test_data, 'test.csv'), index=False)
     
-    # Save transformer and raw data for pipeline training
     joblib.dump(feature_transformer, os.path.join(args.train_data, 'feature_transformer.pkl'))
     
     raw_train_df = X_raw_train.copy()
@@ -205,4 +194,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

@@ -1,10 +1,6 @@
 import datetime
-import os
-import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
-
-from schemas import SEGMENT_ENCODING
+from platform_shared import SEGMENT_ENCODING
 
 
 def featurise_template(template, parsed_goal):

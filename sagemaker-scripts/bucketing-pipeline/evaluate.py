@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 import argparse
 import os
-import sys
 
 import pandas as pd
 import numpy as np
 from sklearn.metrics import confusion_matrix, classification_report
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
-
-from training import setup_logging
-from evaluation import ModelEvaluator
-from schemas import BUCKETING_THRESHOLDS
+from platform_shared import setup_logging, ModelEvaluator, BUCKETING_THRESHOLDS
 
 logger = setup_logging(__name__)
 

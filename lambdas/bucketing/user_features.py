@@ -1,12 +1,8 @@
 import boto3
-import os
-import sys
 import logging
 from typing import Optional
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
-
-from config import get
+from platform_shared import get, USER_FEATURE_DEFAULTS
 
 logger = logging.getLogger(__name__)
 
@@ -75,18 +71,19 @@ def _get_from_feature_store(user_id: str) -> Optional[dict]:
 
 
 def _normalize_features(raw_features: dict) -> dict:
+    defaults = USER_FEATURE_DEFAULTS
     return {
         "user_id": str(raw_features.get("user_id", "")),
-        "age": int(float(raw_features.get("age", 30))),
-        "gender": str(raw_features.get("gender", "M")),
-        "location": str(raw_features.get("location", "US")),
-        "session_count": int(float(raw_features.get("session_count", 0))),
-        "avg_session_duration": float(raw_features.get("avg_session_duration", 0)),
-        "page_views": int(float(raw_features.get("page_views", 0))),
-        "purchase_history": int(float(raw_features.get("purchase_history", 0))),
-        "total_spent": float(raw_features.get("total_spent", 0)),
-        "engagement_score": float(raw_features.get("engagement_score", 0)),
-        "historical_conversion_rate": float(raw_features.get("historical_conversion_rate", 0)),
+        "age": int(float(raw_features.get("age", defaults['age']))),
+        "gender": str(raw_features.get("gender", defaults['gender'])),
+        "location": str(raw_features.get("location", defaults['location'])),
+        "session_count": int(float(raw_features.get("session_count", defaults['session_count']))),
+        "avg_session_duration": float(raw_features.get("avg_session_duration", defaults['avg_session_duration'])),
+        "page_views": int(float(raw_features.get("page_views", defaults['page_views']))),
+        "purchase_history": int(float(raw_features.get("purchase_history", defaults['purchase_history']))),
+        "total_spent": float(raw_features.get("total_spent", defaults['total_spent'])),
+        "engagement_score": float(raw_features.get("engagement_score", defaults['engagement_score'])),
+        "historical_conversion_rate": float(raw_features.get("historical_conversion_rate", defaults['historical_conversion_rate'])),
     }
 
 
@@ -94,7 +91,6 @@ def _get_mock_features(user_id: str) -> Optional[dict]:
     user_hash = hash(user_id) % 100
     
     if user_hash < 20:
-        # High-value user profile
         return {
             "user_id": user_id,
             "age": 35,
@@ -109,7 +105,6 @@ def _get_mock_features(user_id: str) -> Optional[dict]:
             "historical_conversion_rate": 0.45,
         }
     elif user_hash < 50:
-        # Medium-value user profile
         return {
             "user_id": user_id,
             "age": 28,
@@ -124,7 +119,6 @@ def _get_mock_features(user_id: str) -> Optional[dict]:
             "historical_conversion_rate": 0.25,
         }
     else:
-        # Standard user profile
         return {
             "user_id": user_id,
             "age": 42,
@@ -138,4 +132,3 @@ def _get_mock_features(user_id: str) -> Optional[dict]:
             "engagement_score": 0.25,
             "historical_conversion_rate": 0.1,
         }
-

@@ -2,16 +2,12 @@
 import argparse
 import os
 import shutil
-import sys
 
 import pandas as pd
 import xgboost as xgb
 import joblib
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'shared'))
-
-from training import setup_logging, save_model_artifacts
-from metrics import MetricsTracker
+from platform_shared import setup_logging, save_model_artifacts, MetricsTracker
 
 logger = setup_logging(__name__)
 

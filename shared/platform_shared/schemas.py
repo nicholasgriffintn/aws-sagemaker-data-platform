@@ -1,9 +1,5 @@
 from typing import Any
 
-# ============================================================================
-# User Bucketing Features
-# ============================================================================
-
 USER_FEATURE_NAMES = [
     'age',
     'session_count',
@@ -34,7 +30,6 @@ ENGINEERED_FEATURE_NAMES = [
     'spending_tier_encoded',
 ]
 
-# Feature validation rules for input data
 USER_FEATURE_VALIDATION: dict[str, dict[str, Any]] = {
     'age': {'type': (int, float), 'range': (0, 120)},
     'session_count': {'type': (int, float), 'range': (0, None)},
@@ -48,7 +43,6 @@ USER_FEATURE_VALIDATION: dict[str, dict[str, Any]] = {
     'location': {'type': str, 'range': None},
 }
 
-# Default values for missing features
 USER_FEATURE_DEFAULTS: dict[str, Any] = {
     'age': 30,
     'session_count': 0,
@@ -62,23 +56,14 @@ USER_FEATURE_DEFAULTS: dict[str, Any] = {
     'location': 'US',
 }
 
-# ============================================================================
-# Bucketing Configuration
-# ============================================================================
-
 AGE_BINS = [0, 25, 35, 50, 100]
 AGE_LABELS = ['young', 'adult', 'middle_aged', 'senior']
 
 SPENDING_BINS = [-1, 0, 50, 200, float('inf')]
 SPENDING_LABELS = ['none', 'low', 'medium', 'high']
 
-# High-value user thresholds (quantiles)
 HIGH_VALUE_ENGAGEMENT_QUANTILE = 0.7
 HIGH_VALUE_SPENDING_QUANTILE = 0.6
-
-# ============================================================================
-# Recommender Features
-# ============================================================================
 
 SEGMENT_ENCODING = {
     '16_25': 0,
@@ -104,10 +89,6 @@ RECOMMENDER_FEATURE_NAMES = [
     'is_copy_only',
     'uses_notifications',
 ]
-
-# ============================================================================
-# Model Evaluation Thresholds
-# ============================================================================
 
 BUCKETING_THRESHOLDS = {
     'accuracy': ('min', 0.75),
