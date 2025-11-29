@@ -76,20 +76,22 @@ export class FeatureInfrastructureStack extends Stack {
         },
       ],
       roleArn: props.sagemakerExecutionRole.roleArn,
-      onlineStoreConfig: {
-        enableOnlineStore: true,
-        securityConfig: {
-          kmsKeyId: props.kmsKey.keyId,
-        },
-      },
-      offlineStoreConfig: {
-        s3StorageConfig: {
-          s3Uri: `s3://${props.offlineStoreBucket.bucketName}/feature-store/${this.featureGroupName}/`,
-          kmsKeyId: props.kmsKey.keyId,
-        },
-        disableGlueTableCreation: false,
-      },
       description: 'User features for bucketing and experiment assignment',
+    });
+
+    this.featureGroup.addPropertyOverride('OnlineStoreConfig', {
+      EnableOnlineStore: true,
+      SecurityConfig: {
+        KmsKeyId: props.kmsKey.keyArn,
+      },
+    });
+
+    this.featureGroup.addPropertyOverride('OfflineStoreConfig', {
+      S3StorageConfig: {
+        S3Uri: `s3://${props.offlineStoreBucket.bucketName}/feature-store/${this.featureGroupName}/`,
+        KmsKeyId: props.kmsKey.keyArn,
+      },
+      DisableGlueTableCreation: false,
     });
 
 

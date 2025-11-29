@@ -162,3 +162,9 @@ aws cloudformation describe-stacks \
   --stack-name aws-ml-platform-Frontend-dev \
   --query 'Stacks[0].Outputs' --output table
 ```
+
+## Step 13: Clean Up
+
+```bash
+make destroy
+```

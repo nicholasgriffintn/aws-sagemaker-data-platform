@@ -1,3 +1,4 @@
+import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { IamStack } from '../stacks/iam-stack';
 import { StorageStack } from '../stacks/storage-stack';
 
@@ -16,4 +17,11 @@ export function grantPipelineStoragePermissions(
   storage.kmsKey.grantEncryptDecrypt(iam.sagemakerJobRole);
   storage.kmsKey.grantEncryptDecrypt(iam.pipelineRole);
   storage.kmsKey.grantEncryptDecrypt(iam.sagemakerExecutionRole);
+  storage.processedDataBucket.grantReadWrite(iam.sagemakerExecutionRole);
+  iam.sagemakerExecutionRole.addToPolicy(
+    new PolicyStatement({
+      actions: ['s3:GetBucketAcl', 's3:PutBucketAcl'],
+      resources: [storage.processedDataBucket.bucketArn],
+    })
+  );
 }

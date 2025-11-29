@@ -51,6 +51,9 @@ export class IamStack extends Stack {
         roleName: `${props.componentName}-studio-exec-role`,
         managedPolicies: [
           ManagedPolicy.fromAwsManagedPolicyName('AmazonSageMakerFullAccess'),
+          ManagedPolicy.fromAwsManagedPolicyName(
+            'AmazonSageMakerFeatureStoreAccess'
+          ),
         ],
       }
     );
