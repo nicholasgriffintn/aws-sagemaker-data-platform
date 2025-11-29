@@ -1,51 +1,66 @@
-# AWS ML Platform - Unified SageMaker Infrastructure
+# AWS ML Platform
 
 A modular AWS SageMaker platform that provides shared infrastructure for multiple ML pipelines that I'm testing out to learn more about Sagemaker and related systems on AWS.
 
-Currently this includes:
+## Overview
 
 - **Experiment Bucketing Pipeline** - Experiment bucketing with preprocessing, training, and inference
 - **ML Experiment Recommender** - Recommendation engine for suggesting experiments using historical uplift data
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  ML Pipeline Layer                       │
-│  ┌──────────────────┐      ┌──────────────────────┐    │
-│  │  Experiment      │      │   Recommender        │    │
-│  │  Bucketing       │      │   Pipeline           │    │
-│  │  Pipeline        │      │                      │    │
-│  └──────────────────┘      └──────────────────────┘    │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│            Shared Infrastructure Layer                   │
-│  Network │ IAM │ Storage │ Glue │ Lake Formation │      │
-│  SageMaker Studio │ Code Deployment                     │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│                       ML Pipeline Layer                          │
+│  ┌─────────────────────────┐    ┌─────────────────────────────┐ │
+│  │  Experiment Bucketing   │    │   Recommender Pipeline      │ │
+│  │  ├─ Data Ingestion λ    │    │   ├─ Glue ETL Job           │ │
+│  │  ├─ SageMaker Pipeline  │    │   ├─ Glue Crawlers          │ │
+│  │  ├─ Training Job        │    │   ├─ SageMaker Endpoint     │ │
+│  │  └─ Inference Endpoint  │    │   └─ API Gateway + Lambda   │ │
+│  └─────────────────────────┘    └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                 Shared Infrastructure Layer                      │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────────────────┐  │
+│  │ Network  │ │   IAM    │ │ Storage  │ │ Lake Formation     │  │
+│  │ (VPC)    │ │ (Roles)  │ │ (S3+KMS) │ │ (Data Governance)  │  │
+│  └──────────┘ └──────────┘ └──────────┘ └────────────────────┘  │
+│  ┌──────────┐ ┌──────────┐ ┌─────────────────────────────────┐  │
+│  │   Glue   │ │ SageMaker│ │       Code Deployment           │  │
+│  │ (Catalog)│ │  Studio  │ │      (S3 Scripts Sync)          │  │
+│  └──────────┘ └──────────┘ └─────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## Usage
+## Prerequisites
 
-### For Experiment Bucketing Pipeline
+- **Node.js** >= 22.10.0
+- **pnpm** (package manager)
+- **Python** >= 3.10
+- **AWS CLI** configured with appropriate credentials
+- **AWS CDK** CLI (`pnpm add -g aws-cdk`)
 
-1. Upload raw experiment data via data ingestion Lambda
-2. SageMaker pipeline automatically runs preprocessing, training, evaluation
-3. Deploy endpoint for real-time bucketing predictions
+## Quick Start
 
-### For ML Recommender Pipeline
+### 1. Install Dependencies
 
-1. Upload historical experiment data to `s3://bucket/raw/experiments/`
-2. Run Glue crawlers to catalog data
-3. Run Glue ETL job to generate features
-4. Train model locally using `recommender-pipeline/train.py`
-5. Package and upload model to S3
-6. Deploy SageMaker endpoint
-7. Call recommender API to get experiment suggestions
+```bash
+pnpm install
+pip install -r glue/requirements.txt
+pip install -r sagemaker-scripts/experiment-pipeline/requirements.txt
+pip install -r sagemaker-scripts/recommender-pipeline/requirements.txt
+```
 
-## Environment Configuration
+Or use the Makefile:
 
-The platform uses environment-based JSON configuration files in `config/environments/`:
+```bash
+make install
+```
+
+### 2. Configure Environment
+
+Edit `config/environments/dev.json` with your AWS account details:
 
 ```json
 {
@@ -56,40 +71,23 @@ The platform uses environment-based JSON configuration files in `config/environm
 }
 ```
 
-- `componentName` - Prefix for all resource names
-- `awsAccount` - AWS account ID
-- `awsRegion` - AWS region
-- `private` - Whether to use private subnets only (true for production)
+| Property | Description |
+|----------|-------------|
+| `componentName` | Prefix for all resource names |
+| `awsAccount` | Your AWS account ID |
+| `awsRegion` | Target AWS region |
+| `private` | `true` for private subnets only (production), `false` for public access (development) |
 
-## Installation
-
-```bash
-pnpm install
-```
-
-## Deployment
-
-### 1. Configure Environment
-
-Edit `config/environments/dev.json` with your AWS account details.
-
-### 2. Build
+### 3. Build and Deploy
 
 ```bash
+# Build TypeScript
 pnpm run build
-```
 
-### 3. Synthesize CloudFormation
+# Preview changes
+pnpm run diff
 
-```bash
-pnpm run synth
-```
-
-### 4. Deploy
-
-Deploy all stacks:
-
-```bash
+# Deploy all stacks
 pnpm run deploy
 ```
 
@@ -99,12 +97,38 @@ Or deploy specific stacks:
 pnpm run cdk deploy aws-ml-platform-Network-dev aws-ml-platform-Storage-dev
 ```
 
-### 5. Deploy to Different Environments
+### 4. Deploy to Production
 
 ```bash
-# Production
 pnpm run cdk synth -c env=prod
 pnpm run cdk deploy -c env=prod --all
+```
+
+## Usage
+
+### Experiment Bucketing Pipeline
+
+1. **Ingest Data**: Upload raw experiment data via the data ingestion Lambda (scheduled daily at 2am UTC)
+2. **Run Pipeline**: SageMaker pipeline automatically runs preprocessing, training, and evaluation
+3. **Deploy Model**: Approved models are registered and the endpoint is updated
+4. **Make Predictions**: Call the real-time endpoint for user bucketing
+
+### ML Recommender Pipeline
+
+1. **Generate Data**: `make generate-data` creates synthetic experiment data
+2. **Upload Data**: `make upload-data BUCKET=your-bucket` syncs to S3
+3. **Catalog Data**: Glue crawlers run hourly to catalog raw data
+4. **Run ETL**: `make etl` runs the feature engineering job
+5. **Train Model**: `make train` preprocesses and trains locally
+6. **Deploy Model**: `make package-model && make upload-model` deploys to SageMaker
+7. **Get Recommendations**: POST to `/recommend` endpoint with a goal
+
+Example API request:
+
+```bash
+curl -X POST https://YOUR_API_GATEWAY_URL/recommend \
+  -H "Content-Type: application/json" \
+  -d '{"goal": "increase live news at 18:00 for 16-25s", "top_n": 5}'
 ```
 
 ## Adding New ML Pipelines
@@ -113,12 +137,14 @@ To add a new ML pipeline:
 
 1. Create a new stack in `cdk/lib/stacks/pipelines/your-pipeline-stack.ts`
 2. Import and instantiate it in `cdk/bin/cdk.ts` under the "ML Pipeline Layer" section
-3. Use the shared infrastructure resources (storage, IAM roles, network, etc.)
+3. Use shared infrastructure resources (storage, IAM roles, network, etc.)
 4. Add appropriate dependencies
 
 Example:
 
 ```typescript
+import { YourPipelineStack } from '../lib/stacks/pipelines/your-pipeline-stack';
+
 const yourPipeline = new YourPipelineStack(
   app,
   `${cfg.componentName}-YourPipeline-${envName}`,

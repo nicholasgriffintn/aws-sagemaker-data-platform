@@ -44,7 +44,7 @@ export class RecommenderPipelineStack extends Stack {
       targets: {
         s3Targets: [
           {
-            path: `${props.processedDataBucket.bucketArn}/raw/experiments/metadata/`,
+            path: `s3://${props.processedDataBucket.bucketName}/raw/experiments/metadata/`,
           },
         ],
       },
@@ -59,7 +59,7 @@ export class RecommenderPipelineStack extends Stack {
       targets: {
         s3Targets: [
           {
-            path: `${props.processedDataBucket.bucketArn}/raw/experiments/results/`,
+            path: `s3://${props.processedDataBucket.bucketName}/raw/experiments/results/`,
           },
         ],
       },

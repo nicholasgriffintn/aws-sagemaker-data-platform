@@ -1,4 +1,5 @@
 {
+    "_comment": "IMPORTANT: Replace YOUR_PROD_ACCOUNT_ID with your actual AWS account ID before deploying to production",
     "componentName": "aws-ml-platform",
     "awsAccount": "YOUR_PROD_ACCOUNT_ID",
     "awsRegion": "eu-west-1",

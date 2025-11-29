@@ -1,9 +1,6 @@
-import {
-  ScalableTarget,
-  TargetTrackingScalingPolicy,
-} from 'aws-cdk-lib/aws-applicationautoscaling';
-import { Topic } from 'aws-cdk-lib/aws-sns';
+import { ScalableTarget, TargetTrackingScalingPolicy } from 'aws-cdk-lib/aws-applicationautoscaling';
 import { Alarm } from 'aws-cdk-lib/aws-cloudwatch';
+import { Topic } from 'aws-cdk-lib/aws-sns';
 
 export interface EndpointMonitoringProps {
   componentName: string;

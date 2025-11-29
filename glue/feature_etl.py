@@ -66,6 +66,7 @@ df = (
 )
 
 # Age Band Encoding
+# Create a mapping from segment names to integer indices
 age_band_index = (
     df.select("segment").distinct().rdd
     .map(lambda r: r["segment"])
@@ -74,10 +75,13 @@ age_band_index = (
 )
 age_index_map = dict(age_band_index)
 
-mapping_expr = F.create_map(
-    *[F.lit(k) if i % 2 == 0 else F.lit(v)
-      for i, kv in enumerate(sum(age_index_map.items(), ())) for k, v in age_index_map.items()]
-)
+# Create the mapping expression for Spark SQL
+# Flatten the dict into alternating key, value pairs for create_map
+map_entries = []
+for k, v in age_index_map.items():
+    map_entries.extend([F.lit(k), F.lit(v)])
+
+mapping_expr = F.create_map(*map_entries)
 
 df = df.withColumn("segment_encoded", mapping_expr[F.col("segment")])
 
