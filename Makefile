@@ -1,8 +1,10 @@
-.PHONY: install build deploy destroy generate-data upload-data train package-model upload-model update-endpoint recommend clean help build-frontend inject-config
+.PHONY: install build deploy destroy generate-data upload-data upload-raw-data train package-model upload-model update-endpoint recommend clean help build-frontend inject-config run-pipeline run-bucketing-pipeline run-recommender-pipeline
 
-BUCKET ?= aws-ml-platform-dev-processed-data-bucket
+RAW_BUCKET ?= aws-ml-platform-dev-raw-data-bucket
+PROCESSED_BUCKET ?= aws-ml-platform-dev-processed-data-bucket
 API ?= your-api-gateway-url.execute-api.eu-west-1.amazonaws.com
 ENVIRONMENT ?= dev
+COMPONENT ?= aws-ml-platform
 
 help:
 	@echo "AWS ML Platform - Available Commands"
@@ -17,19 +19,26 @@ help:
 	@echo "  make deploy           Deploy all stacks to AWS"
 	@echo "  make destroy          Destroy all stacks from AWS"
 	@echo ""
-	@echo "Data Generation:"
-	@echo "  make generate-data           Generate all synthetic data"
+	@echo "Data Pipeline (AWS):"
+	@echo "  make upload-raw-data         Upload generated raw data to S3 raw bucket"
+	@echo "  make run-pipeline            Run full data pipeline (ETL + ML training)"
+	@echo "  make run-bucketing-pipeline  Run bucketing pipeline only"
+	@echo "  make run-recommender-pipeline Run recommender pipeline only"
+	@echo "  make run-bucketing-etl       Run bucketing Glue ETL job"
+	@echo "  make run-experiment-etl      Run experiment Glue ETL job"
+	@echo ""
+	@echo "Data Generation (Local):"
+	@echo "  make generate-data           Generate all synthetic data locally"
 	@echo "  make generate-experiment     Generate experiment data (recommender)"
 	@echo "  make generate-bucketing      Generate user bucketing data"
-	@echo "  make upload-data             Upload all generated data to S3"
 	@echo ""
-	@echo "Model Training:"
+	@echo "Local Model Training:"
 	@echo "  make train-recommender   Train recommender model locally"
 	@echo "  make train-bucketing     Train bucketing model locally"
 	@echo "  make package-model       Package model artifacts for SageMaker"
 	@echo "  make upload-model        Upload model to S3"
 	@echo ""
-	@echo "Recommender API:"
+	@echo "API Testing:"
 	@echo "  make recommend        Test the recommender API"
 	@echo ""
 	@echo "Frontend:"
@@ -38,9 +47,11 @@ help:
 	@echo "  make inject-config    Inject API URLs into frontend config"
 	@echo ""
 	@echo "Configuration:"
-	@echo "  BUCKET=bucket-name    Set S3 bucket (default: $(BUCKET))"
-	@echo "  API=api-url           Set API Gateway URL"
-	@echo "  ENVIRONMENT=env       Set environment (default: $(ENVIRONMENT))"
+	@echo "  RAW_BUCKET=bucket       Set raw data S3 bucket (default: $(RAW_BUCKET))"
+	@echo "  PROCESSED_BUCKET=bucket Set processed data S3 bucket (default: $(PROCESSED_BUCKET))"
+	@echo "  API=api-url             Set API Gateway URL"
+	@echo "  ENVIRONMENT=env         Set environment (default: $(ENVIRONMENT))"
+	@echo "  COMPONENT=name          Set component name (default: $(COMPONENT))"
 
 install:
 	pnpm install
@@ -88,17 +99,43 @@ generate-experiment:
 generate-bucketing:
 	cd data-generator && ../.venv/bin/python main.py bucketing
 
-upload-data:
-	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
-	cd data-generator && ../.venv/bin/python main.py all --upload --bucket $(BUCKET)
+upload-raw-data:
+	@echo "Uploading raw data to S3 raw bucket..."
+	@if [ -z "$(RAW_BUCKET)" ]; then echo "Error: RAW_BUCKET not set"; exit 1; fi
+	cd data-generator && ../.venv/bin/python main.py all --upload --bucket $(RAW_BUCKET)
 
 upload-experiment-data:
-	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
-	cd data-generator && ../.venv/bin/python main.py experiment --upload --bucket $(BUCKET)
+	@if [ -z "$(RAW_BUCKET)" ]; then echo "Error: RAW_BUCKET not set"; exit 1; fi
+	cd data-generator && ../.venv/bin/python main.py experiment --upload --bucket $(RAW_BUCKET)
 
 upload-bucketing-data:
-	@if [ -z "$(BUCKET)" ]; then echo "Error: BUCKET not set"; exit 1; fi
-	cd data-generator && ../.venv/bin/python main.py bucketing --upload --bucket $(BUCKET)
+	@if [ -z "$(RAW_BUCKET)" ]; then echo "Error: RAW_BUCKET not set"; exit 1; fi
+	cd data-generator && ../.venv/bin/python main.py bucketing --upload --bucket $(RAW_BUCKET)
+
+upload-data: upload-raw-data
+
+run-bucketing-etl:
+	@echo "Starting Bucketing ETL job..."
+	aws glue start-job-run --job-name $(COMPONENT)-$(ENVIRONMENT)-bucketing-etl
+
+run-experiment-etl:
+	@echo "Starting Experiment ETL job..."
+	aws glue start-job-run --job-name $(COMPONENT)-$(ENVIRONMENT)-experiment-etl
+
+run-pipeline:
+	@echo "Starting full data pipeline (Step Functions)..."
+	aws stepfunctions start-execution \
+		--state-machine-arn arn:aws:states:eu-west-1:$$(aws sts get-caller-identity --query Account --output text):stateMachine:$(COMPONENT)-$(ENVIRONMENT)-full-data-pipeline
+
+run-bucketing-pipeline:
+	@echo "Starting bucketing data pipeline (Step Functions)..."
+	aws stepfunctions start-execution \
+		--state-machine-arn arn:aws:states:eu-west-1:$$(aws sts get-caller-identity --query Account --output text):stateMachine:$(COMPONENT)-$(ENVIRONMENT)-bucketing-data-pipeline
+
+run-recommender-pipeline:
+	@echo "Starting recommender data pipeline (Step Functions)..."
+	aws stepfunctions start-execution \
+		--state-machine-arn arn:aws:states:eu-west-1:$$(aws sts get-caller-identity --query Account --output text):stateMachine:$(COMPONENT)-$(ENVIRONMENT)-recommender-data-pipeline
 
 train-recommender:
 	@echo "Preprocessing recommender data..."

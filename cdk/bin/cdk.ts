@@ -16,6 +16,7 @@ import { FeatureInfrastructureStack } from '../lib/stacks/feature-infrastructure
 import { ExperimentPipelineStack } from '../lib/stacks/pipelines/experiment-pipeline-stack';
 import { RecommenderPipelineStack } from '../lib/stacks/pipelines/recommender-pipeline-stack';
 import { FrontendStack } from '../lib/stacks/frontend-stack';
+import { DataPipelineStack } from '../lib/stacks/data-pipeline-stack';
 import { grantPipelineStoragePermissions } from '../lib/utils';
 
 interface EnvConfig {
@@ -88,6 +89,10 @@ const glue = new GlueStack(app, `${cfg.componentName}-Glue-${envName}`, {
   env,
   environmentName: envName,
   componentName: cfg.componentName,
+  rawDataBucket: storage.rawDataBucket,
+  processedDataBucket: storage.processedDataBucket,
+  codeBucket: storage.codeBucket,
+  kmsKey: storage.kmsKey,
 });
 glue.addDependency(storage);
 
@@ -211,6 +216,25 @@ const recommenderPipeline = new RecommenderPipelineStack(
 recommenderPipeline.addDependency(lakeFormation);
 recommenderPipeline.addDependency(codeDeployment);
 recommenderPipeline.addDependency(featureInfra);
+
+const dataPipeline = new DataPipelineStack(
+  app,
+  `${cfg.componentName}-DataPipeline-${envName}`,
+  {
+    env,
+    environmentName: envName,
+    componentName: cfg.componentName,
+    rawDataBucket: storage.rawDataBucket,
+    processedDataBucket: storage.processedDataBucket,
+    bucketingEtlJobName: `${cfg.componentName}-${envName}-bucketing-etl`,
+    experimentEtlJobName: `${cfg.componentName}-${envName}-experiment-etl`,
+    bucketingPipelineName: `${cfg.componentName}-${envName}-bucketing-bucketing-pipeline`,
+    recommenderPipelineName: `${cfg.componentName}-${envName}-recommender-bucketing-pipeline`,
+  }
+);
+dataPipeline.addDependency(glue);
+dataPipeline.addDependency(experimentPipeline);
+dataPipeline.addDependency(recommenderPipeline);
 
 const frontend = new FrontendStack(
   app,

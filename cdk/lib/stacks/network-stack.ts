@@ -57,6 +57,10 @@ export class NetworkStack extends Stack {
 			description: 'Security group for Sagemaker Studio and jobs that run within it.',
 			allowAllOutbound: true,
 		});
+		
+		this.vpc.addGatewayEndpoint(`${props.componentName}-s3`, {
+      service: GatewayVpcEndpointAwsService.S3,
+    });
 
 		if (props.private) {
 			const interfaceServices = [
@@ -90,28 +94,19 @@ export class NetworkStack extends Stack {
 				}
 			]
 
-			interfaceServices.forEach(service => {
-				this.vpc.addInterfaceEndpoint(`${props.componentName}-${service.name}-endpoint`, {
-					service: service.service,
-					securityGroups: [this.sagemakerStudioSg],
-					subnets: {
-						subnets: this.vpc.isolatedSubnets
-					},
-					privateDnsEnabled: true,
-				});
-			});
-
-			this.vpc.addGatewayEndpoint(
-				`${props.componentName}-s3`,
-				{
-					service: GatewayVpcEndpointAwsService.S3,
-					subnets: [
-						{
-							subnets: this.vpc.isolatedSubnets
-						}
-					]
-				}
-			);
+			interfaceServices.forEach((service) => {
+        this.vpc.addInterfaceEndpoint(
+          `${props.componentName}-${service.name}-endpoint`,
+          {
+            service: service.service,
+            securityGroups: [this.sagemakerStudioSg],
+            subnets: {
+              subnets: this.vpc.isolatedSubnets,
+            },
+            privateDnsEnabled: true,
+          }
+        );
+      });
 		}
 
 

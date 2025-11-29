@@ -79,39 +79,76 @@ Or with explicit environment:
 
 `pnpm run cdk deploy -c env=dev --all --require-approval never`
 
-## Step 8: Generate and Upload Training Data
+## Step 8: Generate and Upload Raw Data
 
-After deployment completes, get your bucket name from the outputs (or use the default):
+After deployment completes, generate synthetic raw data and upload to the raw S3 bucket:
 
 ```bash
-# Generate synthetic data
+# Generate synthetic data locally
 make generate-data
 
-# Upload to S3 (replace with your actual bucket)
-make upload-data BUCKET=aws-ml-platform-dev-processed-data-bucket
+# Upload raw data to S3 raw bucket
+make upload-raw-data RAW_BUCKET=aws-ml-platform-dev-raw-data-bucket
 ```
 
 Or upload specific datasets:
 
 ```bash
-make upload-experiment-data BUCKET=aws-ml-platform-dev-processed-data-bucket
-make upload-bucketing-data BUCKET=aws-ml-platform-dev-processed-data-bucket
+make upload-experiment-data RAW_BUCKET=aws-ml-platform-dev-raw-data-bucket
+make upload-bucketing-data RAW_BUCKET=aws-ml-platform-dev-raw-data-bucket
 ```
 
-## Step 9: Run the SageMaker Pipelines
+## Step 9: Run the Data Pipeline
 
-Go to the AWS Console → SageMaker → Pipelines. You'll see two pipelines:
+The platform uses a complete data pipeline workflow:
 
-- `aws-ml-platform-dev-bucketing-pipeline`
-- `aws-ml-platform-dev-recommender-pipeline`
+1. **Raw Data** → S3 Raw Bucket
+2. **Glue ETL** → Processes raw data into training-ready format
+3. **SageMaker Pipeline** → Trains and evaluates ML models
 
-Click each one and hit "Start execution" to train the models.
-Alternatively, use the AWS CLI:
+### Option A: Run the Full Pipeline (Recommended)
+
+Run the complete end-to-end workflow using Step Functions:
 
 ```bash
-aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-bucketing-pipeline
-aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recommender-pipeline
+# Run full pipeline: ETL + ML training for both models
+make run-pipeline
 ```
+
+Or run individual pipelines:
+
+```bash
+# Bucketing pipeline only
+make run-bucketing-pipeline
+
+# Recommender pipeline only
+make run-recommender-pipeline
+```
+
+### Option B: Run Individual Steps
+
+Run Glue ETL jobs separately:
+
+```bash
+# Process bucketing raw data
+make run-bucketing-etl
+
+# Process experiment raw data
+make run-experiment-etl
+```
+
+Then run SageMaker pipelines:
+
+```bash
+aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-bucketing-bucketing-pipeline
+aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recommender-bucketing-pipeline
+```
+
+### Monitor Pipeline Execution
+
+- **Step Functions**: AWS Console → Step Functions → State Machines
+- **Glue ETL Jobs**: AWS Console → AWS Glue → ETL Jobs → Job runs
+- **SageMaker Pipelines**: AWS Console → SageMaker → Pipelines
 
 ## Step 10: Test the APIs
 
