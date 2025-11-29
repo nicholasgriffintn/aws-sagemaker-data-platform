@@ -34,7 +34,7 @@ if (!bucketingApiUrl || !recommenderApiUrl) {
   try {
     const bucketingStackName = `${componentName}-ExperimentPipeline-${environment}`;
     const bucketingOutput = execSync(
-      `aws cloudformation describe-stacks --stack-name ${bucketingStackName} --query "Stacks[0].Outputs[?contains(OutputKey, 'api-url')].OutputValue" --output text`,
+      `aws cloudformation describe-stacks --stack-name ${bucketingStackName} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text`,
       { encoding: 'utf-8' }
     ).trim();
 
@@ -49,7 +49,7 @@ if (!bucketingApiUrl || !recommenderApiUrl) {
   try {
     const recommenderStackName = `${componentName}-RecommenderPipeline-${environment}`;
     const recommenderOutput = execSync(
-      `aws cloudformation describe-stacks --stack-name ${recommenderStackName} --query "Stacks[0].Outputs[?contains(OutputKey, 'api-url')].OutputValue" --output text`,
+      `aws cloudformation describe-stacks --stack-name ${recommenderStackName} --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text`,
       { encoding: 'utf-8' }
     ).trim();
 

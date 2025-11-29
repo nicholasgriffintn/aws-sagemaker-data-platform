@@ -280,29 +280,34 @@ export abstract class BasePipelineStack extends Stack {
     dataCaptureUri?: string;
     alertsTopicArn?: string;
   }): void {
-    new CfnOutput(this, `${params.componentName}-pipeline-name`, {
+    new CfnOutput(this, 'PipelineName', {
       value: params.pipelineName,
+      exportName: `${this.stackName}-pipeline-name`,
     });
 
     if (params.endpointName) {
-      new CfnOutput(this, `${params.componentName}-endpoint-name`, {
+      new CfnOutput(this, 'EndpointName', {
         value: params.endpointName,
+        exportName: `${this.stackName}-endpoint-name`,
       });
     }
 
-    new CfnOutput(this, `${params.componentName}-api-url`, {
+    new CfnOutput(this, 'ApiUrl', {
       value: params.apiUrl,
+      exportName: `${this.stackName}-api-url`,
     });
 
     if (params.alertsTopicArn) {
-      new CfnOutput(this, `${params.componentName}-alerts-topic-arn`, {
+      new CfnOutput(this, 'AlertsTopicArn', {
         value: params.alertsTopicArn,
+        exportName: `${this.stackName}-alerts-topic-arn`,
       });
     }
 
     if (params.dataCaptureUri) {
-      new CfnOutput(this, `${params.componentName}-data-capture-uri`, {
+      new CfnOutput(this, 'DataCaptureUri', {
         value: params.dataCaptureUri,
+        exportName: `${this.stackName}-data-capture-uri`,
       });
     }
   }

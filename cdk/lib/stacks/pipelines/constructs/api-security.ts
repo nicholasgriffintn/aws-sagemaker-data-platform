@@ -55,7 +55,7 @@ export class ApiSecurity extends Construct {
 
     this.usagePlan.addApiKey(this.apiKey);
 
-    new CfnOutput(this, `${props.apiName}ApiKeyId`, {
+    new CfnOutput(this, 'ApiKeyId', {
       value: this.apiKey.keyId,
       description: `API Key ID for ${props.apiName}. Retrieve value with: aws apigateway get-api-key --api-key <id> --include-value`,
     });

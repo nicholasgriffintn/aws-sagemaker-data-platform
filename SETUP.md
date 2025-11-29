@@ -219,7 +219,29 @@ Go to AWS Console → SageMaker → Domains and open your studio to explore:
 - Feature Store
 - Pipeline executions
 
-## Step 14: View the Frontend
+## Step 14: Configure the Frontend
+
+Inject the API endpoint URLs and keys into the frontend configuration:
+
+```bash
+cd frontend && node scripts/inject-config.js dev
+```
+
+This script fetches the API Gateway URLs and API keys from CloudFormation outputs and writes them to `src/config/endpoints.ts`.
+
+After configuring the frontend, build and deploy it:
+
+```bash
+cd frontend && pnpm run build
+```
+
+And then from the root directory:
+
+```bash
+make deploy
+```
+
+## Step 15: View the Frontend
 
 Get the CloudFront URL:
 
@@ -229,7 +251,7 @@ aws cloudformation describe-stacks \
   --query 'Stacks[0].Outputs' --output table
 ```
 
-## Step 15: Clean Up
+## Step 16: Clean Up
 
 ```bash
 make destroy
