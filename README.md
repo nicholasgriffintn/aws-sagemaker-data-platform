@@ -107,20 +107,18 @@ const response = await fetch('https://your-api.execute-api.region.amazonaws.com/
 /**
  * Example response:
  * {
-    "goal": "increase live news at 18:00 for 16-25s",
-    "parsed": {
-      "segment": "16_25",
-      "metric": "live_news_18_consumption",
-      "time_focus": 18
+    "user_id": "user_12345",
+    "bucket": "high_value",
+    "confidence": 0.87,
+    "experiment_assignment": {
+      "type": "layout_test",
+      "variant": "B"
     },
-    "recommendations": [
-      {
-        "template_id": "live_news_push_16_25",
-        "description": "Push reminder for Live News at 18:00 for 16–25s.",
-        "predicted_uplift": 0.12
-      }
-    ]
- * }
+    "features_used": {
+      "engagement_score": 0.82,
+      "total_spent": 245.50
+    }
+  * }
 */
 
 const { bucket, experiment_assignment } = await response.json();
