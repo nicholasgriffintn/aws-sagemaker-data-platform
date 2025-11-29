@@ -168,9 +168,6 @@ const featureInfra = new FeatureInfrastructureStack(
 featureInfra.addDependency(storage);
 featureInfra.addDependency(iam);
 
-featureInfra.userFeaturesTable.grantReadData(iam.lambdaExecutionRole);
-storage.kmsKey.grantDecrypt(iam.lambdaExecutionRole);
-
 const experimentPipeline = new ExperimentPipelineStack(
   app,
   `${cfg.componentName}-ExperimentPipeline-${envName}`,

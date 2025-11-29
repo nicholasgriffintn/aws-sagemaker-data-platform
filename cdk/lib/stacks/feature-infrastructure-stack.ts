@@ -92,6 +92,7 @@ export class FeatureInfrastructureStack extends Stack {
       description: 'User features for bucketing and experiment assignment',
     });
 
+
     new CfnOutput(this, 'UserFeaturesTableName', {
       value: this.userFeaturesTable.tableName,
       description: 'DynamoDB table name for user features',

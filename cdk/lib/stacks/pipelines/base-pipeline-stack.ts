@@ -1,4 +1,5 @@
-import { CfnOutput, Duration, Stack } from 'aws-cdk-lib';
+import * as path from 'path';
+import { CfnOutput, DockerVolume, Duration, Stack } from 'aws-cdk-lib';
 import { SubnetType } from 'aws-cdk-lib/aws-ec2';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Tracing } from 'aws-cdk-lib/aws-lambda';
@@ -122,6 +123,12 @@ export abstract class BasePipelineStack extends Stack {
 
     const lambdaFunctionName = `${props.componentName}-${props.environmentName}-${config.pipelineName}`;
 
+    const sharedPackagePath = path.join(__dirname, '..', '..', '..', '..', 'shared', 'platform_shared');
+    const sharedVolume: DockerVolume = {
+      hostPath: sharedPackagePath,
+      containerPath: '/shared/platform_shared',
+    };
+
     const pipelineLambda = new lambda.Function(
       this,
       `${config.pipelineName}Lambda`,
@@ -132,10 +139,11 @@ export abstract class BasePipelineStack extends Stack {
         code: lambda.Code.fromAsset(config.lambdaCodePath, {
           bundling: {
             image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+            volumes: [sharedVolume],
             command: [
               'bash',
               '-c',
-              'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output',
+              'pip install -r requirements.txt -t /asset-output && cp -au . /asset-output && cp -r /shared/platform_shared /asset-output/',
             ],
           },
         }),

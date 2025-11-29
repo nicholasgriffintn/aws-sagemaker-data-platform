@@ -1,3 +1,4 @@
+import os
 import boto3
 import logging
 from typing import Optional
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 FEATURE_SOURCE = get('feature_source', 'mock')
 DYNAMODB_TABLE = get('dynamodb_table', 'user-features')
 FEATURE_GROUP_NAME = get('feature_group_name', 'user-bucketing-features')
-AWS_REGION = get('region', 'eu-west-1')
+AWS_REGION = os.environ.get('AWS_REGION', 'eu-west-1')
 
 
 def get_user_features(user_id: str) -> Optional[dict]:

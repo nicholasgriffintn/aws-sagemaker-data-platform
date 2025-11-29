@@ -280,5 +280,23 @@ export class IamStack extends Stack {
         ],
       })
     );
+
+    this.lambdaExecutionRole.addToPolicy(
+      new PolicyStatement({
+        actions: ['kms:Decrypt', 'kms:GenerateDataKey'],
+        resources: [
+          stack.formatArn({
+            service: 'kms',
+            resource: 'key',
+            resourceName: '*',
+          }),
+        ],
+        conditions: {
+          StringLike: {
+            'kms:ViaService': `dynamodb.${stack.region}.amazonaws.com`,
+          },
+        },
+      })
+    );
   }
 }

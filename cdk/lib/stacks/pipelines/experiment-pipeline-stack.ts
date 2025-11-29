@@ -25,7 +25,6 @@ export class ExperimentPipelineStack extends BasePipelineStack {
         FEATURE_SOURCE: 'mock',
         DYNAMODB_TABLE: props.userFeaturesTableName,
         FEATURE_GROUP_NAME: props.featureGroupName,
-        AWS_REGION: process.env.CDK_DEFAULT_REGION ?? 'eu-west-1',
       },
     });
   }
