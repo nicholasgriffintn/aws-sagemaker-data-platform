@@ -5,7 +5,7 @@ Reads raw experiment metadata and results from the raw S3 bucket,
 joins and aggregates the data, and writes processed data for the
 recommender pipeline.
 
-Input: s3://<raw-bucket>/experiments/metadata/ and s3://<raw-bucket>/experiments/results/
+Input: s3://<raw-bucket>/raw/experiments/metadata/ and s3://<raw-bucket>/raw/experiments/results/
 Output: s3://<processed-bucket>/recommender-pipeline/data/
 """
 import sys
@@ -31,8 +31,8 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
-RAW_METADATA_PATH = f"s3://{args['raw_bucket']}/experiments/metadata/"
-RAW_RESULTS_PATH = f"s3://{args['raw_bucket']}/experiments/results/"
+RAW_METADATA_PATH = f"s3://{args['raw_bucket']}/raw/experiments/metadata/"
+RAW_RESULTS_PATH = f"s3://{args['raw_bucket']}/raw/experiments/results/"
 OUTPUT_PATH = f"s3://{args['processed_bucket']}/recommender-pipeline/data/"
 
 print(f"Reading metadata from: {RAW_METADATA_PATH}")
@@ -80,7 +80,10 @@ aggregated_df = joined_df.groupBy(
 
 aggregated_df = aggregated_df.withColumn(
     "experiment_duration_days",
-    F.datediff(F.col("end_datetime"), F.col("start_datetime"))
+    F.datediff(
+        F.to_timestamp(F.col("end_datetime")),
+        F.to_timestamp(F.col("start_datetime"))
+    )
 )
 
 aggregated_df = aggregated_df.withColumn(

@@ -1,7 +1,5 @@
-import polars as pl
+import pandas as pd
 import numpy as np
-import pyarrow as pa
-import pyarrow.parquet as pq
 from faker import Faker
 from datetime import timedelta
 import os
@@ -28,15 +26,20 @@ def generate_metadata(n: int = 1_000_000):
     """
     print(f"Generating {n} experiment metadata rows…")
 
-    start_dates = np.array([
+    start_dates = [
         fake.date_time_between(start_date="-800d", end_date="now")
         for _ in range(n)
-    ])
+    ]
+    
+    end_dates = [
+        dt + timedelta(days=np.random.randint(7, 40))
+        for dt in start_dates
+    ]
 
-    df = pl.DataFrame({
+    df = pd.DataFrame({
         "experiment_id": np.arange(n),
         "name": [f"Exp {i}" for i in range(n)],
-        "description": fake.sentences(nb=n),
+        "description": [fake.sentence() for _ in range(n)],
         "surface": np.random.choice(SURFACES, n),
         "platform": np.random.choice(PLATFORMS, n),
         "content_scope": np.random.choice(CONTENT_SCOPE, n),
@@ -44,17 +47,14 @@ def generate_metadata(n: int = 1_000_000):
         "target_age_band": np.random.choice(AGE_BANDS, n),
         "target_region": np.random.choice(REGIONS, n),
         "target_device": np.random.choice(DEVICES, n),
-        "start_datetime": start_dates,
-        "end_datetime": [
-            dt + timedelta(days=np.random.randint(7, 40))
-            for dt in start_dates
-        ],
+        "start_datetime": [dt.strftime('%Y-%m-%d %H:%M:%S') for dt in start_dates],
+        "end_datetime": [dt.strftime('%Y-%m-%d %H:%M:%S') for dt in end_dates],
         "num_variants": np.random.randint(2, 4, n)
     })
 
     return df
 
-def generate_results(metadata: pl.DataFrame, multiplier: int = 10):
+def generate_results(metadata: pd.DataFrame, multiplier: int = 10):
     """
     Generate results for experiments.
 
@@ -65,10 +65,10 @@ def generate_results(metadata: pl.DataFrame, multiplier: int = 10):
     Returns:
         DataFrame containing experiment results.
     """
-    n = metadata.height
+    n = len(metadata)
     print(f"Generating ~{n*multiplier:,} experiment result rows…")
 
-    exp_ids = np.repeat(metadata["experiment_id"], multiplier)
+    exp_ids = np.repeat(metadata["experiment_id"].values, multiplier)
 
     variants = np.random.choice(["control", "treatment"], n * multiplier)
     segments = np.random.choice(AGE_BANDS, n * multiplier)
@@ -81,7 +81,7 @@ def generate_results(metadata: pl.DataFrame, multiplier: int = 10):
 
     treatment_values = control_values * (1 + uplift)
 
-    df = pl.DataFrame({
+    df = pd.DataFrame({
         "experiment_id": exp_ids,
         "variant_id": variants,
         "segment": segments,
@@ -95,7 +95,7 @@ def generate_results(metadata: pl.DataFrame, multiplier: int = 10):
 
     return df
 
-def write_parquet(df: pl.DataFrame, path: str, prefix: str, chunk=250_000):
+def write_parquet(df: pd.DataFrame, path: str, prefix: str, chunk: int = 250_000):
     """
     Write a DataFrame to Parquet files.
 
@@ -106,16 +106,13 @@ def write_parquet(df: pl.DataFrame, path: str, prefix: str, chunk=250_000):
         chunk: Number of rows to write in each chunk.
     """
     ensure(path)
-    total = df.height // chunk + 1
+    total = len(df) // chunk + 1
     for i in range(total):
-        slice_df = df[i * chunk : (i + 1) * chunk]
-        if slice_df.is_empty():
+        slice_df = df.iloc[i * chunk : (i + 1) * chunk]
+        if len(slice_df) == 0:
             continue
-        pq.write_table(
-            slice_df.to_arrow(),
-            f"{path}/{prefix}-part-{i:05}.snappy.parquet",
-            compression="snappy"
-        )
+        output_path = f"{path}/{prefix}-part-{i:05}.snappy.parquet"
+        slice_df.to_parquet(output_path, engine='pyarrow', compression='snappy')
 
 def main():
     """

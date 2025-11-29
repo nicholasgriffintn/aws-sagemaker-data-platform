@@ -4,7 +4,7 @@ Glue ETL Job: Process User Bucketing Data
 Reads raw user data from the raw S3 bucket, performs feature engineering,
 and writes processed data to the processed S3 bucket for ML training.
 
-Input: s3://<raw-bucket>/bucketing/
+Input: s3://<raw-bucket>/raw/bucketing/
 Output: s3://<processed-bucket>/bucketing-pipeline/data/
 """
 import sys
@@ -31,7 +31,7 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
-RAW_PATH = f"s3://{args['raw_bucket']}/bucketing/"
+RAW_PATH = f"s3://{args['raw_bucket']}/raw/bucketing/"
 OUTPUT_PATH = f"s3://{args['processed_bucket']}/bucketing-pipeline/data/"
 
 AGE_BINS = [0, 25, 35, 50, 100]
