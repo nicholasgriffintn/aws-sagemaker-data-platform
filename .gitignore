@@ -148,3 +148,6 @@ __pycache__/
 data-generator/output/
 
 .DS_Store
+
+
+sagemaker-scripts/**/platform_shared/

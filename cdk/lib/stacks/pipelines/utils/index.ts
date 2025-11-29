@@ -1,2 +1,2 @@
 export { getScriptDirectory, getScriptFilename } from './paths';
-export { getSageMakerImageUri } from './sagemaker';
+export { getSageMakerImageUri, SageMakerFramework } from './sagemaker';

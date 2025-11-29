@@ -69,7 +69,16 @@ install:
 	@echo "Python virtual environment created at .venv"
 	@echo "Activate it with: source .venv/bin/activate"
 
-build:
+bundle-sagemaker-scripts:
+	@echo "Bundling shared library into SageMaker scripts..."
+	cp -r shared/platform_shared sagemaker-scripts/bucketing-pipeline/
+	cp -r shared/platform_shared sagemaker-scripts/recommender-pipeline/
+	@echo "Creating setup scripts for runtime dependency installation..."
+	@echo '#!/bin/bash\npip install -r /opt/ml/processing/code/requirements.txt 2>/dev/null || true' > sagemaker-scripts/bucketing-pipeline/setup.sh
+	@echo '#!/bin/bash\npip install -r /opt/ml/processing/code/requirements.txt 2>/dev/null || true' > sagemaker-scripts/recommender-pipeline/setup.sh
+	chmod +x sagemaker-scripts/bucketing-pipeline/setup.sh sagemaker-scripts/recommender-pipeline/setup.sh
+
+build: bundle-sagemaker-scripts
 	pnpm run build
 
 diff:
@@ -78,6 +87,10 @@ diff:
 clean:
 	rm -rf cdk.out dist node_modules .venv
 	rm -rf data-generator/output
+	rm -rf sagemaker-scripts/bucketing-pipeline/platform_shared
+	rm -rf sagemaker-scripts/recommender-pipeline/platform_shared
+	rm -f sagemaker-scripts/bucketing-pipeline/setup.sh
+	rm -f sagemaker-scripts/recommender-pipeline/setup.sh
 	rm -rf frontend/node_modules frontend/.next frontend/out
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true

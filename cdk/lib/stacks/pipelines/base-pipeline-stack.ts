@@ -26,7 +26,7 @@ import {
   MLDashboard,
   ScheduledRetraining,
 } from './constructs';
-import { getSageMakerImageUri } from './utils';
+import { getSageMakerImageUri, SageMakerFramework } from './utils';
 
 export interface MLPipelineConfig {
   pipelineName: string;
@@ -37,6 +37,7 @@ export interface MLPipelineConfig {
   lambdaMemorySize?: number;
   scriptDirectory: string;
   lambdaEnvironment?: Record<string, string>;
+  framework?: SageMakerFramework;
 }
 
 /**
@@ -71,7 +72,7 @@ export abstract class BasePipelineStack extends Stack {
     this.primaryInstanceType = INSTANCE_TYPES.PRIMARY;
     this.secondaryInstanceType = INSTANCE_TYPES.SECONDARY;
     this.pipelineName = config.pipelineName;
-    this.sagemakerImageUri = getSageMakerImageUri(this.region);
+    this.sagemakerImageUri = getSageMakerImageUri(this.region, config.framework);
 
     const pipelinePrefix = getPipelinePrefix(config.pipelineName);
 
