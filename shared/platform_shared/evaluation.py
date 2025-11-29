@@ -7,6 +7,19 @@ import joblib
 
 from .metrics import MetricsTracker
 
+# TODO: Work out this error:
+""" 2025-11-29T23:05:31.441Z
+	
+2025-11-29 23:05:30,027 - __main__ - INFO - Starting model evaluation...
+	
+2025-11-29T23:05:31.441Z
+	
+Traceback (most recent call last): File "/opt/ml/processing/code/evaluate.py", line 79, in <module> main() File "/opt/ml/processing/code/evaluate.py", line 29, in main model = evaluator.load_model(args.model_path, extension='.pkl') File "/opt/ml/processing/code/platform_shared/evaluation.py", line 36, in load_model raise FileNotFoundError(f"No model file found in {model_path}")
+	
+2025-11-29T23:05:31.441Z
+	
+FileNotFoundError: No model file found in /opt/ml/processing/model """
+
 
 class ModelEvaluator:
     def __init__(
