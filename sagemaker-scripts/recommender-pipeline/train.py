@@ -17,7 +17,7 @@ def main():
     Uses XGBoost for regression to predict uplift percentages.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model-dir", type=str, default=os.environ.get("SM_MODEL_DIR", "/opt/ml/model"))
+    parser.add_argument("--model_dir", type=str, default=os.environ.get("SM_MODEL_DIR", "/opt/ml/model"))
     parser.add_argument("--train", type=str, default=os.environ.get("SM_CHANNEL_TRAINING", "/opt/ml/input/data/training"))
     parser.add_argument("--validation", type=str, default=os.environ.get("SM_CHANNEL_VALIDATION", "/opt/ml/input/data/validation"))
     parser.add_argument("--max_depth", type=int, default=8)
@@ -26,7 +26,10 @@ def main():
     parser.add_argument("--colsample_bytree", type=float, default=0.8)
     parser.add_argument("--num_boost_round", type=int, default=400)
     parser.add_argument("--early_stopping_rounds", type=int, default=20)
-    args = parser.parse_args()
+    parser.add_argument("--model_type", type=str, default="xgboost")
+    parser.add_argument("--n_estimators", type=int, default=100)
+    parser.add_argument("--random_state", type=int, default=42)
+    args, _ = parser.parse_known_args()
 
     logger.info(f"Training data path: {args.train}")
     logger.info(f"Validation data path: {args.validation}")

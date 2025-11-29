@@ -18,14 +18,14 @@ def main():
     Trains a scikit-learn classifier (RandomForest or LogisticRegression) on the training data and validates on the validation data.
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model-dir', type=str, default=os.environ.get('SM_MODEL_DIR', '/opt/ml/model'))
+    parser.add_argument('--model_dir', type=str, default=os.environ.get('SM_MODEL_DIR', '/opt/ml/model'))
     parser.add_argument('--train', type=str, default=os.environ.get('SM_CHANNEL_TRAINING', '/opt/ml/input/data/training'))
     parser.add_argument('--validation', type=str, default=os.environ.get('SM_CHANNEL_VALIDATION', '/opt/ml/input/data/validation'))
     parser.add_argument('--n_estimators', type=int, default=100)
     parser.add_argument('--max_depth', type=int, default=10)
     parser.add_argument('--random_state', type=int, default=42)
     parser.add_argument('--model_type', type=str, default='random_forest', choices=['random_forest', 'logistic_regression'])
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
 
     logger.info(f"Model type: {args.model_type}")
     logger.info(f"Hyperparameters: n_estimators={args.n_estimators}, max_depth={args.max_depth}")
