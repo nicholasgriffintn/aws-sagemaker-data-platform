@@ -54,7 +54,6 @@ const env = {
   region: process.env.CDK_DEFAULT_REGION || cfg.awsRegion,
 };
 
-// Shared Infrastructure Layer
 const network = new NetworkStack(
   app,
   `${cfg.componentName}-Network-${envName}`,
@@ -160,7 +159,6 @@ new UserProfileStack(app, `${cfg.componentName}-UserProfile-${envName}`, {
   securityGroup: network.sagemakerStudioSg,
 });
 
-// Feature Infrastructure (DynamoDB + Feature Store)
 const featureInfra = new FeatureInfrastructureStack(
   app,
   `${cfg.componentName}-FeatureInfra-${envName}`,
@@ -176,13 +174,9 @@ const featureInfra = new FeatureInfrastructureStack(
 featureInfra.addDependency(storage);
 featureInfra.addDependency(iam);
 
-// Grant Lambda role access to the DynamoDB table and KMS key
 featureInfra.userFeaturesTable.grantReadData(iam.lambdaExecutionRole);
 storage.kmsKey.grantDecrypt(iam.lambdaExecutionRole);
 
-// User Bucketing Pipeline
-// Uses SageMaker pipelines for preprocessing, training, and inference
-// Includes API Gateway for user bucketing
 const experimentPipeline = new ExperimentPipelineStack(
   app,
   `${cfg.componentName}-ExperimentPipeline-${envName}`,
@@ -206,9 +200,6 @@ experimentPipeline.addDependency(lakeFormation);
 experimentPipeline.addDependency(codeDeployment);
 experimentPipeline.addDependency(featureInfra);
 
-// ML Experiment Recommender Pipeline
-// Uses SageMaker pipelines for preprocessing, training, and inference
-// Includes API Gateway for serving recommendations
 const recommenderPipeline = new RecommenderPipelineStack(
   app,
   `${cfg.componentName}-RecommenderPipeline-${envName}`,
@@ -230,9 +221,6 @@ recommenderPipeline.addDependency(lakeFormation);
 recommenderPipeline.addDependency(codeDeployment);
 recommenderPipeline.addDependency(featureInfra);
 
-// Documentation Frontend
-// Deployed as a static site on S3 with CloudFront
-// Build the frontend first with: make build-frontend
 const frontend = new FrontendStack(
   app,
   `${cfg.componentName}-Frontend-${envName}`,

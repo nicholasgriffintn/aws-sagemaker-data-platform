@@ -4,7 +4,7 @@
  */
 export function getScriptDirectory(scriptPath: string): string {
   const parts = scriptPath.split('/');
-  parts.pop(); // Remove the filename
+  parts.pop();
   return parts.join('/');
 }
 

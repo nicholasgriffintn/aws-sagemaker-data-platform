@@ -1,17 +1,27 @@
 import { CfnOutput, Duration, Stack, StackProps } from 'aws-cdk-lib';
-import { SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
+import { SecurityGroup, SubnetType, Vpc } from 'aws-cdk-lib/aws-ec2';
 import { Role } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { Tracing } from 'aws-cdk-lib/aws-lambda';
 import * as apigw from 'aws-cdk-lib/aws-apigateway';
 import { CfnEndpoint, CfnPipeline } from 'aws-cdk-lib/aws-sagemaker';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
+import { EmailSubscription } from 'aws-cdk-lib/aws-sns-subscriptions';
 import { Construct } from 'constructs';
 
 import { PipelineScriptLocations } from './types';
 import { Endpoint } from './constructs/endpoint';
 import { SageMakerPipeline } from './constructs/sagemaker-pipeline';
 import { getSageMakerImageUri } from '../pipelines/utils/sagemaker';
+import {
+  ApiSecurity,
+  createCorsEnabledApi,
+  addSecureMethod,
+} from './constructs/api-security';
+import { ModelAutoDeploy } from './constructs/model-auto-deploy';
+import { MLDashboard } from './constructs/ml-dashboard';
+import { ScheduledRetraining } from './constructs/scheduled-retraining';
 
 export interface ExperimentPipelineStackProps extends StackProps {
   environmentName: string;
@@ -26,6 +36,11 @@ export interface ExperimentPipelineStackProps extends StackProps {
   readonly lambdaExecutionRole: Role;
   readonly userFeaturesTableName: string;
   readonly featureGroupName: string;
+  readonly alertEmail?: string;
+  readonly enableApiSecurity?: boolean;
+  readonly enableScheduledRetraining?: boolean;
+  readonly retrainingSchedule?: string;
+  readonly enableModelAutoDeploy?: boolean;
 }
 
 /**
@@ -111,9 +126,10 @@ export class ExperimentPipelineStack extends Stack {
 
     this.bucketingEndpoint = endpoint.resources.endpoint;
 
-    // Lambda function for user bucketing API
-    // Bundles dependencies from requirements.txt
+    const lambdaFunctionName = `${props.componentName}-${props.environmentName}-bucketing`;
+
     const bucketingLambda = new lambda.Function(this, 'BucketingLambda', {
+      functionName: lambdaFunctionName,
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'handler.handler',
       code: lambda.Code.fromAsset('lambdas/bucketing', {
@@ -129,23 +145,95 @@ export class ExperimentPipelineStack extends Stack {
       role: props.lambdaExecutionRole,
       timeout: Duration.seconds(30),
       memorySize: 256,
+      vpc: props.vpc,
+      vpcSubnets: {
+        subnetType:
+          props.vpc.privateSubnets.length > 0
+            ? SubnetType.PRIVATE_WITH_EGRESS
+            : SubnetType.PRIVATE_ISOLATED,
+      },
+      securityGroups: [props.securityGroup],
+      tracing: Tracing.ACTIVE,
       environment: {
         ENDPOINT_NAME: endpoint.resources.endpoint.endpointName!,
         FEATURE_SOURCE: 'mock',
         DYNAMODB_TABLE: props.userFeaturesTableName,
         FEATURE_GROUP_NAME: props.featureGroupName,
         AWS_REGION: this.region,
+        AWS_XRAY_DAEMON_ADDRESS: '127.0.0.1:2000',
+        AWS_XRAY_CONTEXT_MISSING: 'LOG_ERROR',
       },
     });
 
-    // API Gateway for user bucketing
-    this.api = new apigw.RestApi(this, 'BucketingApi', {
+    this.api = createCorsEnabledApi(this, 'BucketingApi', {
       restApiName: `${props.componentName}-${props.environmentName}-User-Bucketing`,
       description: 'API for user bucketing and experiment assignment',
     });
 
-    const bucket = this.api.root.addResource('bucket');
-    bucket.addMethod('POST', new apigw.LambdaIntegration(bucketingLambda));
+    const bucketResource = this.api.root.addResource('bucket');
+    const enableApiSecurity = props.enableApiSecurity ?? true;
+
+    if (enableApiSecurity) {
+      addSecureMethod(
+        bucketResource,
+        'POST',
+        new apigw.LambdaIntegration(bucketingLambda)
+      );
+
+      const apiSecurity = new ApiSecurity(this, 'BucketingApiSecurity', {
+        componentName: props.componentName,
+        environmentName: props.environmentName,
+        api: this.api,
+        apiName: 'bucketing',
+        rateLimit: 100,
+        burstLimit: 200,
+        quotaLimit: 10000,
+      });
+    } else {
+      bucketResource.addMethod(
+        'POST',
+        new apigw.LambdaIntegration(bucketingLambda)
+      );
+    }
+
+    if (props.enableModelAutoDeploy ?? true) {
+      new ModelAutoDeploy(this, 'BucketingModelAutoDeploy', {
+        componentName: props.componentName,
+        environmentName: props.environmentName,
+        pipelineName,
+        pipelineRole: props.pipelineRole,
+        vpc: props.vpc,
+        securityGroup: props.securityGroup,
+        kmsKey: props.dataKey,
+        endpointName: endpoint.resources.endpoint.endpointName!,
+        instanceType: this.imageId,
+      });
+    }
+
+    new MLDashboard(this, 'BucketingDashboard', {
+      componentName: props.componentName,
+      environmentName: props.environmentName,
+      pipelineName,
+      endpointName: endpoint.resources.endpoint.endpointName!,
+      lambdaFunctionName,
+      apiName: `${props.componentName}-${props.environmentName}-User-Bucketing`,
+    });
+
+    if (props.enableScheduledRetraining) {
+      new ScheduledRetraining(this, 'BucketingScheduledRetraining', {
+        componentName: props.componentName,
+        environmentName: props.environmentName,
+        pipelineName,
+        schedule: props.retrainingSchedule,
+        enabled: true,
+      });
+    }
+
+    if (props.alertEmail) {
+      endpoint.resources.alertsTopic.addSubscription(
+        new EmailSubscription(props.alertEmail)
+      );
+    }
 
     this.registerOutputs({
       componentName: props.componentName,

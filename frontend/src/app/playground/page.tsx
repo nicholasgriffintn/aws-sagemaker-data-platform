@@ -4,10 +4,10 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Navigation } from '@/components/Navigation';
 import {
-  apiConfig,
   isConfigured,
   getBucketingUrl,
   getRecommenderUrl,
+  getApiHeaders,
 } from '@/config/endpoints';
 import {
   Play,
@@ -134,7 +134,7 @@ export default function PlaygroundPage() {
 
         const res = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: getApiHeaders(activeTab),
           body: JSON.stringify(body),
         });
 
@@ -537,18 +537,19 @@ export default function PlaygroundPage() {
               </div>
               <div className="terminal-content">
                 {activeTab === 'bucketing' ? (
-                  <pre className="!bg-transparent !border-0 !p-0">{`// Bucket a user for experiment assignment
-const response = await fetch('${
+                  <pre className="!bg-transparent !border-0 !p-0">{`const response = await fetch('${
                     configured ? getBucketingUrl() : '/api/bucket'
                   }', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'x-api-key': process.env.BUCKETING_API_KEY
+  },
   body: JSON.stringify({ user_id: '${userId}' })
 });
 
 const { bucket, confidence, experiment_assignment } = await response.json();
 
-// Route user based on bucket
 if (bucket === 'high_value') {
   showPremiumExperience();
   trackExperiment(experiment_assignment.type, experiment_assignment.variant);
@@ -556,12 +557,14 @@ if (bucket === 'high_value') {
   showStandardExperience();
 }`}</pre>
                 ) : (
-                  <pre className="!bg-transparent !border-0 !p-0">{`// Get experiment recommendations for a goal
-const response = await fetch('${
+                  <pre className="!bg-transparent !border-0 !p-0">{`const response = await fetch('${
                     configured ? getRecommenderUrl() : '/api/recommend'
                   }', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'x-api-key': process.env.RECOMMENDER_API_KEY
+  },
   body: JSON.stringify({ 
     goal: '${goal}',
     top_n: ${topN}
@@ -570,7 +573,6 @@ const response = await fetch('${
 
 const { parsed, recommendations } = await response.json();
 
-// Run the top recommended experiment
 const topExperiment = recommendations[0];
 console.log(\`Running: \${topExperiment.template_id}\`);
 console.log(\`Expected uplift: \${(topExperiment.predicted_uplift * 100).toFixed(0)}%\`);

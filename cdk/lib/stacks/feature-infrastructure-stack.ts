@@ -41,7 +41,6 @@ export class FeatureInfrastructureStack extends Stack {
     const tableName = `${props.componentName}-${props.environmentName}-user-features`;
     this.featureGroupName = `${props.componentName}-${props.environmentName}-user-bucketing-features`;
 
-    // DynamoDB table for real-time user features
     this.userFeaturesTable = new Table(this, 'UserFeaturesTable', {
       tableName,
       partitionKey: {
@@ -55,8 +54,6 @@ export class FeatureInfrastructureStack extends Stack {
       pointInTimeRecovery: true,
     });
 
-    // SageMaker Feature Group for ML features
-    // This provides low-latency feature retrieval optimized for ML inference
     this.featureGroup = new CfnFeatureGroup(this, 'UserBucketingFeatureGroup', {
       featureGroupName: this.featureGroupName,
       recordIdentifierFeatureName: 'user_id',
@@ -95,7 +92,6 @@ export class FeatureInfrastructureStack extends Stack {
       description: 'User features for bucketing and experiment assignment',
     });
 
-    // Outputs
     new CfnOutput(this, 'UserFeaturesTableName', {
       value: this.userFeaturesTable.tableName,
       description: 'DynamoDB table name for user features',

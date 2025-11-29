@@ -43,14 +43,10 @@ export class Endpoint extends Construct {
   constructor(scope: Construct, id: string, props: EndpointProps) {
     super(scope, id);
 
-    // Model artifacts path - defaults to pipeline output location
-    // Note: After initial deployment, this should be updated to point to actual trained model
-    // or use Model Registry to dynamically resolve the latest approved model
     const modelDataUrl =
       props.modelArtifactsPath ??
       `s3://${props.processedDataBucket.bucketName}/${props.pipelineName}-pipeline/models/model.tar.gz`;
 
-    // Extract script directory and filename from the full path
     const inferenceScript = props.modelInterfaceScript ?? 'inference.py';
     const scriptDir = inferenceScript.includes('/')
       ? getScriptDirectory(inferenceScript)

@@ -1,17 +1,27 @@
 import { CfnOutput, Duration, Stack, StackProps } from 'aws-cdk-lib';
-import { SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
+import { SecurityGroup, SubnetType, Vpc } from 'aws-cdk-lib/aws-ec2';
 import { Role } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import { Tracing } from 'aws-cdk-lib/aws-lambda';
 import * as apigw from 'aws-cdk-lib/aws-apigateway';
 import { CfnEndpoint, CfnPipeline } from 'aws-cdk-lib/aws-sagemaker';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
+import { EmailSubscription } from 'aws-cdk-lib/aws-sns-subscriptions';
 import { Construct } from 'constructs';
 
 import { PipelineScriptLocations } from './types';
 import { Endpoint } from './constructs/endpoint';
 import { SageMakerPipeline } from './constructs/sagemaker-pipeline';
 import { getSageMakerImageUri } from '../pipelines/utils/sagemaker';
+import {
+  ApiSecurity,
+  createCorsEnabledApi,
+  addSecureMethod,
+} from './constructs/api-security';
+import { ModelAutoDeploy } from './constructs/model-auto-deploy';
+import { MLDashboard } from './constructs/ml-dashboard';
+import { ScheduledRetraining } from './constructs/scheduled-retraining';
 
 export interface RecommenderPipelineStackProps extends StackProps {
   environmentName: string;
@@ -24,6 +34,11 @@ export interface RecommenderPipelineStackProps extends StackProps {
   readonly dataKey: Key;
   readonly pipelineRole: Role;
   readonly lambdaExecutionRole: Role;
+  readonly alertEmail?: string;
+  readonly enableApiSecurity?: boolean;
+  readonly enableScheduledRetraining?: boolean;
+  readonly retrainingSchedule?: string;
+  readonly enableModelAutoDeploy?: boolean;
 }
 
 /**
@@ -114,8 +129,10 @@ export class RecommenderPipelineStack extends Stack {
 
     this.recommenderEndpoint = endpoint.resources.endpoint;
 
-    // Lambda function for serving recommendations via API
+    const lambdaFunctionName = `${props.componentName}-${props.environmentName}-recommender`;
+
     const recommenderLambda = new lambda.Function(this, 'RecommenderLambda', {
+      functionName: lambdaFunctionName,
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'handler.handler',
       code: lambda.Code.fromAsset('lambdas/recommender', {
@@ -131,21 +148,93 @@ export class RecommenderPipelineStack extends Stack {
       role: props.lambdaExecutionRole,
       timeout: Duration.seconds(30),
       memorySize: 512,
+      vpc: props.vpc,
+      vpcSubnets: {
+        subnetType:
+          props.vpc.privateSubnets.length > 0
+            ? SubnetType.PRIVATE_WITH_EGRESS
+            : SubnetType.PRIVATE_ISOLATED,
+      },
+      securityGroups: [props.securityGroup],
+      tracing: Tracing.ACTIVE,
       environment: {
         ENDPOINT_NAME: endpoint.resources.endpoint.endpointName!,
         USE_BEDROCK_PARSER: 'false',
         BEDROCK_MODEL_ID: 'anthropic.claude-3-haiku-20240307-v1:0',
+        AWS_XRAY_DAEMON_ADDRESS: '127.0.0.1:2000',
+        AWS_XRAY_CONTEXT_MISSING: 'LOG_ERROR',
       },
     });
 
-    // API Gateway for exposing the recommender
-    this.api = new apigw.RestApi(this, 'RecommenderApi', {
+    this.api = createCorsEnabledApi(this, 'RecommenderApi', {
       restApiName: `${props.componentName}-${props.environmentName}-ML-Recommender`,
       description: 'API for ML experiment recommendations',
     });
 
-    const recommend = this.api.root.addResource('recommend');
-    recommend.addMethod('POST', new apigw.LambdaIntegration(recommenderLambda));
+    const recommendResource = this.api.root.addResource('recommend');
+    const enableApiSecurity = props.enableApiSecurity ?? true;
+
+    if (enableApiSecurity) {
+      addSecureMethod(
+        recommendResource,
+        'POST',
+        new apigw.LambdaIntegration(recommenderLambda)
+      );
+
+      new ApiSecurity(this, 'RecommenderApiSecurity', {
+        componentName: props.componentName,
+        environmentName: props.environmentName,
+        api: this.api,
+        apiName: 'recommender',
+        rateLimit: 100,
+        burstLimit: 200,
+        quotaLimit: 10000,
+      });
+    } else {
+      recommendResource.addMethod(
+        'POST',
+        new apigw.LambdaIntegration(recommenderLambda)
+      );
+    }
+
+    if (props.enableModelAutoDeploy ?? true) {
+      new ModelAutoDeploy(this, 'RecommenderModelAutoDeploy', {
+        componentName: props.componentName,
+        environmentName: props.environmentName,
+        pipelineName,
+        pipelineRole: props.pipelineRole,
+        vpc: props.vpc,
+        securityGroup: props.securityGroup,
+        kmsKey: props.dataKey,
+        endpointName: endpoint.resources.endpoint.endpointName!,
+        instanceType: this.imageId,
+      });
+    }
+
+    new MLDashboard(this, 'RecommenderDashboard', {
+      componentName: props.componentName,
+      environmentName: props.environmentName,
+      pipelineName,
+      endpointName: endpoint.resources.endpoint.endpointName!,
+      lambdaFunctionName,
+      apiName: `${props.componentName}-${props.environmentName}-ML-Recommender`,
+    });
+
+    if (props.enableScheduledRetraining) {
+      new ScheduledRetraining(this, 'RecommenderScheduledRetraining', {
+        componentName: props.componentName,
+        environmentName: props.environmentName,
+        pipelineName,
+        schedule: props.retrainingSchedule ?? 'cron(0 3 ? * SUN *)',
+        enabled: true,
+      });
+    }
+
+    if (props.alertEmail) {
+      endpoint.resources.alertsTopic.addSubscription(
+        new EmailSubscription(props.alertEmail)
+      );
+    }
 
     this.registerOutputs({
       componentName: props.componentName,

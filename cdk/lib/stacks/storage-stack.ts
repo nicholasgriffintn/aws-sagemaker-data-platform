@@ -1,4 +1,10 @@
-import { CfnOutput, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
+import {
+  CfnOutput,
+  Duration,
+  RemovalPolicy,
+  Stack,
+  StackProps,
+} from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import {
@@ -6,11 +12,15 @@ import {
   Bucket,
   BucketEncryption,
   ObjectOwnership,
+  StorageClass,
 } from 'aws-cdk-lib/aws-s3';
 
 export interface StorageStackProps extends StackProps {
   environmentName: string;
   componentName: string;
+  modelRetentionDays?: number;
+  dataCaptureRetentionDays?: number;
+  logRetentionDays?: number;
 }
 
 export class StorageStack extends Stack {
@@ -29,6 +39,8 @@ export class StorageStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
     });
 
+    const logRetentionDays = props.logRetentionDays ?? 30;
+
     this.logBucket = new Bucket(this, `${props.componentName}-log-bucket`, {
       bucketName: `${props.componentName}-${props.environmentName}-log-bucket`,
       blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
@@ -38,6 +50,19 @@ export class StorageStack extends Stack {
       enforceSSL: true,
       autoDeleteObjects: true,
       objectOwnership: ObjectOwnership.OBJECT_WRITER,
+      lifecycleRules: [
+        {
+          id: 'TransitionLogsToGlacier',
+          enabled: true,
+          transitions: [
+            {
+              storageClass: StorageClass.GLACIER,
+              transitionAfter: Duration.days(logRetentionDays),
+            },
+          ],
+          expiration: Duration.days(logRetentionDays * 4),
+        },
+      ],
     });
 
     this.rawDataBucket = new Bucket(
@@ -57,6 +82,9 @@ export class StorageStack extends Stack {
       }
     );
 
+    const modelRetentionDays = props.modelRetentionDays ?? 90;
+    const dataCaptureRetentionDays = props.dataCaptureRetentionDays ?? 30;
+
     this.processedDataBucket = new Bucket(
       this,
       `${props.componentName}-processed-data-bucket`,
@@ -71,6 +99,46 @@ export class StorageStack extends Stack {
         serverAccessLogsPrefix: `processed-data-bucket-access-logs/`,
         autoDeleteObjects: true,
         objectOwnership: ObjectOwnership.BUCKET_OWNER_ENFORCED,
+        lifecycleRules: [
+          {
+            id: 'TransitionOldModelsToGlacier',
+            enabled: true,
+            prefix: '*-pipeline/models/',
+            transitions: [
+              {
+                storageClass: StorageClass.INTELLIGENT_TIERING,
+                transitionAfter: Duration.days(30),
+              },
+              {
+                storageClass: StorageClass.GLACIER,
+                transitionAfter: Duration.days(modelRetentionDays),
+              },
+            ],
+          },
+          {
+            id: 'DeleteOldDataCapture',
+            enabled: true,
+            prefix: '*-pipeline/data-capture/',
+            expiration: Duration.days(dataCaptureRetentionDays),
+          },
+          {
+            id: 'TransitionOldTrainingOutputs',
+            enabled: true,
+            prefix: '*-pipeline/training-outputs/',
+            transitions: [
+              {
+                storageClass: StorageClass.INTELLIGENT_TIERING,
+                transitionAfter: Duration.days(30),
+              },
+            ],
+            expiration: Duration.days(modelRetentionDays * 2),
+          },
+          {
+            id: 'AbortIncompleteMultipartUploads',
+            enabled: true,
+            abortIncompleteMultipartUploadAfter: Duration.days(7),
+          },
+        ],
       }
     );
 

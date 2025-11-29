@@ -312,28 +312,28 @@ export default function BucketingPage() {
                 </span>
               </div>
               <div className="terminal-content">
-                <pre className="!bg-transparent !border-0 !p-0">{`// On user login or page load
-async function bucketUser(userId: string) {
+                <pre className="!bg-transparent !border-0 !p-0">{`async function bucketUser(userId: string) {
   const response = await fetch('/api/bucket', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'x-api-key': process.env.BUCKETING_API_KEY
+    },
     body: JSON.stringify({ user_id: userId })
   });
 
   const data = await response.json();
   
   return {
-    bucket: data.bucket,           // e.g., 'high_value'
-    confidence: data.confidence,   // e.g., 0.87
+    bucket: data.bucket,
+    confidence: data.confidence,
     experiment: data.experiment_assignment
   };
 }
 
-// Example: Route user based on bucket
 const { bucket, experiment } = await bucketUser('user_12345');
 
 if (bucket === 'high_value') {
-  // Show premium features
   enableFeature('new_checkout_flow');
   trackExperiment(experiment.type, experiment.variant);
 }

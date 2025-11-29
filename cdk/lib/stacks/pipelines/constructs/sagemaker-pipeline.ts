@@ -18,7 +18,6 @@ export class SageMakerPipeline extends Construct {
       inference: props.scriptLocations?.inference ?? 'inference.py',
     };
 
-    // Extract script directory for S3 paths (all scripts should be in same directory)
     const scriptDirectory = getScriptDirectory(scripts.preprocessing);
     const codeS3Uri = `s3://${props.codeBucket.bucketName}/${scriptDirectory}/`;
 
@@ -235,7 +234,6 @@ export class SageMakerPipeline extends Construct {
                 (subnet) => subnet.subnetId
               ),
             },
-            // Network isolation disabled to allow S3 access for scripts and dependencies
             EnableNetworkIsolation: false,
           },
         },
@@ -265,7 +263,6 @@ export class SageMakerPipeline extends Construct {
                 InputName: 'model',
                 AppManaged: false,
                 S3Input: {
-                  // Use the model artifacts from the training step
                   S3Uri: {
                     Get: 'Steps.ModelTraining.ModelArtifacts.S3ModelArtifacts',
                   },

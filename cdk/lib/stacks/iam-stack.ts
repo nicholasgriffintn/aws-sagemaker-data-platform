@@ -172,8 +172,6 @@ export class IamStack extends Stack {
       })
     );
 
-    // Lambda Execution Role for API Lambdas
-    // Dedicated role with permissions for DynamoDB, Feature Store, Bedrock, and SageMaker endpoints
     this.lambdaExecutionRole = new Role(
       this,
       `${props.componentName}-${props.environmentName}-lambda-exec-role`,
@@ -184,11 +182,14 @@ export class IamStack extends Stack {
           ManagedPolicy.fromAwsManagedPolicyName(
             'service-role/AWSLambdaBasicExecutionRole'
           ),
+          ManagedPolicy.fromAwsManagedPolicyName(
+            'service-role/AWSLambdaVPCAccessExecutionRole'
+          ),
+          ManagedPolicy.fromAwsManagedPolicyName('AWSXRayDaemonWriteAccess'),
         ],
       }
     );
 
-    // SageMaker endpoint invocation
     this.lambdaExecutionRole.addToPolicy(
       new PolicyStatement({
         actions: ['sagemaker:InvokeEndpoint', 'sagemaker:DescribeEndpoint'],
@@ -202,7 +203,6 @@ export class IamStack extends Stack {
       })
     );
 
-    // DynamoDB access for user features
     this.lambdaExecutionRole.addToPolicy(
       new PolicyStatement({
         actions: [
@@ -221,7 +221,6 @@ export class IamStack extends Stack {
       })
     );
 
-    // SageMaker Feature Store access
     this.lambdaExecutionRole.addToPolicy(
       new PolicyStatement({
         actions: [
@@ -239,7 +238,6 @@ export class IamStack extends Stack {
       })
     );
 
-    // Amazon Bedrock access for goal parsing
     this.lambdaExecutionRole.addToPolicy(
       new PolicyStatement({
         actions: [
@@ -247,22 +245,18 @@ export class IamStack extends Stack {
           'bedrock:InvokeModelWithResponseStream',
         ],
         resources: [
-          // Allow invoking any Bedrock foundation model
           stack.formatArn({
             service: 'bedrock',
             resource: 'inference-profile',
             resourceName: '*',
             arnFormat: ArnFormat.SLASH_RESOURCE_NAME,
           }),
-          // Claude models
           'arn:aws:bedrock:*::foundation-model/anthropic.claude-*',
-          // Allow cross-region inference profiles
           `arn:aws:bedrock:*:${stack.account}:inference-profile/*`,
         ],
       })
     );
 
-    // CloudWatch Logs for debugging
     this.lambdaExecutionRole.addToPolicy(
       new PolicyStatement({
         actions: [

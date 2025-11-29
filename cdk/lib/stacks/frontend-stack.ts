@@ -32,7 +32,6 @@ export class FrontendStack extends Stack {
   constructor(scope: Construct, id: string, props: FrontendStackProps) {
     super(scope, id, props);
 
-    // S3 bucket for hosting the static site
     this.websiteBucket = new s3.Bucket(this, 'WebsiteBucket', {
       bucketName: `${props.componentName}-docs-${props.environmentName}-${this.account}`,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -41,7 +40,6 @@ export class FrontendStack extends Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
     });
 
-    // Origin Access Identity for CloudFront
     const originAccessIdentity = new cloudfront.OriginAccessIdentity(
       this,
       'OAI',
@@ -50,10 +48,8 @@ export class FrontendStack extends Stack {
       }
     );
 
-    // Grant read access to CloudFront
     this.websiteBucket.grantRead(originAccessIdentity);
 
-    // CloudFront distribution
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultBehavior: {
         origin: new origins.S3Origin(this.websiteBucket, {
@@ -81,13 +77,9 @@ export class FrontendStack extends Stack {
       comment: `${props.componentName} Documentation - ${props.environmentName}`,
     });
 
-    // Deploy the static site files
-    // Note: The frontend must be built before CDK deploy
-    // The build process will inject the API URLs into the config
     new s3deploy.BucketDeployment(this, 'DeployWebsite', {
       sources: [
         s3deploy.Source.asset(path.join(__dirname, '../../../frontend/out'), {
-          // Exclude source maps in production
           exclude: props.environmentName === 'prod' ? ['*.map'] : [],
         }),
       ],
@@ -96,7 +88,6 @@ export class FrontendStack extends Stack {
       distributionPaths: ['/*'],
     });
 
-    // Outputs
     new CfnOutput(this, 'WebsiteUrl', {
       value: `https://${this.distribution.distributionDomainName}`,
       description: 'URL of the documentation website',
