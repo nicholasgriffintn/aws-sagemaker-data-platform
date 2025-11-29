@@ -8,207 +8,181 @@ A modular AWS SageMaker platform that provides shared infrastructure for multipl
 
 Classifies users for experiment assignment using SageMaker pipelines
 
+```mermaid
+flowchart TB
+    subgraph ingestion["Data Ingestion"]
+        DG["🐍 Data Generator<br/>(Python)"]
+        S3Raw["📦 S3 Raw Bucket<br/>raw/bucketing/"]
+        DG --> S3Raw
+    end
+
+    subgraph etl["Glue ETL: process_bucketing_data.py"]
+        direction TB
+        GlueJob["⚙️ Glue ETL Job<br/>(Spark on Glue)"]
+        
+        ETLDetails["<b>Transformations:</b><br/>
+        • spend_per_purchase = total_spent / purchases<br/>
+        • session_efficiency = page_views / sessions<br/>
+        • age_group: young/adult/middle_aged/senior<br/>
+        • spending_tier: none/low/medium/high<br/>
+        • high_value_user: engagement > 75th %ile<br/>
+          AND spending > 75th %ile<br/><br/>
+        <b>Output:</b> CSV + Parquet formats"]
+    end
+
+    subgraph sagemaker["SageMaker Pipeline"]
+        direction TB
+        Preprocess["1️⃣ DataPreprocessing<br/>(Processing Job)<br/>─────────────<br/>• Feature engineering<br/>• Train/val/test split<br/>• Normalization & encoding"]
+        Train["2️⃣ ModelTraining<br/>(Training Job)<br/>─────────────<br/>• RandomForest or LogisticRegression<br/>• Hyperparams: n_estimators, max_depth"]
+        Evaluate["3️⃣ ModelEvaluation<br/>(Processing Job)<br/>─────────────<br/>• Accuracy, Precision, Recall, AUC<br/>• Generates model_approval.json"]
+        Condition{"4️⃣ CheckModelApproval"}
+        
+        Preprocess --> Train --> Evaluate --> Condition
+    end
+
+    subgraph registry["Model Registry"]
+        ModelReg["📋 Model Package Group<br/>─────────────<br/>• Version tracked<br/>• Auto-deploy via EventBridge"]
+    end
+
+    S3Raw --> GlueJob
+    GlueJob --> ETLDetails
+    ETLDetails --> S3Proc["📦 S3 Processed<br/>bucketing-pipeline/data/"]
+    S3Proc --> Preprocess
+    Condition -->|Approved| ModelReg
+    Condition -->|Rejected| Fail["❌ Fail"]
 ```
-┌──────────────┐    ┌─────────────────┐    ┌────────────────────┐
-│ Data Generator │───▶│  S3 Raw Bucket   │───▶│ SageMaker Pipeline │
-│  (Python)      │    │                  │    │                    │
-└──────────────┘    └─────────────────┘    └────────────────────┘
-                                                       │
-                    ┌──────────────────────────────────┘
-                    ▼
-        ┌────────────────────────────────────────────────────┐
-        │              Pipeline Steps                        │
-        │  1. DataPreprocessing (Processing Job)             │
-        │     - Feature engineering                          │
-        │     - Train/validation/test split                  │
-        │     - Normalization & encoding                     │
-        │                                                    │
-        │  2. ModelTraining (Training Job)                   │
-        │     - RandomForest or LogisticRegression           │
-        │     - Hyperparameter: n_estimators, max_depth      │
-        │                                                    │
-        │  3. ModelEvaluation (Processing Job)               │
-        │     - Accuracy, Precision, Recall, AUC             │
-        │     - Generates model_approval.json                │
-        │                                                    │
-        │  4. CheckModelApproval (Condition)                 │
-        │     - If approved → RegisterModel                  │
-        │     - If rejected → Fail                           │
-        └────────────────────────────────────────────────────┘
-                    │
-                    ▼ (If Approved)
-        ┌────────────────────────────────────────────────────┐
-        │         Model Registry                             │
-        │  - Model Package Group                             │
-        │  - Version tracked                                 │
-        │  - Auto-deploy to endpoint via EventBridge         │
-        └────────────────────────────────────────────────────┘
-                    │
-                    ▼
-        ┌────────────────────────────────────────────────────┐
-        │          Real-Time Inference                        │
-        │                                                     │
-        │  Client ─▶ API Gateway ─▶ Lambda ─▶ SageMaker      │
-        │              │              │         Endpoint      │
-        │              │              │             │         │
-        │         API Key        Fetch User    Predict        │
-        │         Auth           Features      Bucket         │
-        │                                                     │
-        │  Response: { bucket, confidence, experiment_assign }│
-        └────────────────────────────────────────────────────┘
+
+#### Real-Time Inference Flow
+
+```mermaid
+flowchart LR
+    subgraph request["Request"]
+        Client["👤 Client"]
+        UserID["user_id: 'user_12345'"]
+    end
+
+    subgraph auth["Authentication"]
+        API["🌐 API Gateway"]
+        APIKey["🔑 API Key Auth"]
+    end
+
+    subgraph processing["Lambda Processing"]
+        Lambda["λ Lambda"]
+        Features["📊 Fetch User Features<br/>─────────────<br/>• Mock (default)<br/>• DynamoDB<br/>• Feature Store"]
+    end
+
+    subgraph prediction["Model Prediction"]
+        Endpoint["🤖 SageMaker Endpoint<br/>(RandomForest)"]
+        Predict["Predict Bucket"]
+    end
+
+    subgraph response["Response"]
+        Output["📤 {<br/>  bucket: 'high_value',<br/>  confidence: 0.87,<br/>  experiment_assignment: {<br/>    type: 'layout_test',<br/>    variant: 'B'<br/>  }<br/>}"]
+    end
+
+    Client --> UserID --> API
+    API --> APIKey --> Lambda
+    Lambda --> Features --> Endpoint
+    Endpoint --> Predict --> Output
 ```
 
 ### ML Recommender Pipeline
 
 Recommendation engine for suggesting experiments using historical uplift data
 
+```mermaid
+flowchart TB
+    subgraph ingestion["Data Ingestion"]
+        DG["🐍 Data Generator<br/>(Python)<br/>─────────────<br/>generates:<br/>• experiments<br/>• uplifts"]
+        S3Raw["📦 S3 Raw Bucket<br/>experiments/<br/>• metadata/<br/>• results/"]
+        DG --> S3Raw
+    end
+
+    subgraph etl["Glue ETL: process_experiment_data.py"]
+        direction TB
+        GlueJob["⚙️ Glue ETL Job<br/>(Spark on Glue)"]
+        
+        ETLDetails["<b>Transformations:</b><br/>
+        • Join metadata + results on experiment_id<br/>
+        • Aggregate per experiment:<br/>
+          - total_observations, total_sample_size<br/>
+          - avg_uplift_pct, stddev_uplift_pct<br/>
+          - avg/max/min z_score<br/>
+          - num_metrics, num_segments<br/>
+        • experiment_duration_days: end - start<br/>
+        • is_significant: |z_score| > 1.96<br/>
+        • is_successful: significant AND uplift > 0<br/>
+        • experiment_size: small/medium/large<br/>
+        • experiment_length: short/medium/long<br/><br/>
+        <b>Output:</b> CSV + Parquet formats"]
+    end
+
+    subgraph sagemaker["SageMaker Pipeline"]
+        direction TB
+        Preprocess["1️⃣ DataPreprocessing<br/>(Processing Job)<br/>─────────────<br/>• Join metadata + results<br/>• Extract features: num_variants,<br/>  duration, surface, platform, etc.<br/>• Calculate uplift percentages<br/>• Train/validation split"]
+        Train["2️⃣ ModelTraining<br/>(Training Job)<br/>─────────────<br/>• XGBoost Regressor<br/>• max_depth=8, eta=0.05<br/>• subsample=0.8<br/>• num_boost_round=400<br/>• Predicts: uplift_pct"]
+        Evaluate["3️⃣ ModelEvaluation<br/>(Processing Job)<br/>─────────────<br/>• RMSE ≤ 5.0<br/>• MAE ≤ 3.0<br/>• R² ≥ 0.6<br/>• Generates model_approval.json"]
+        Condition{"4️⃣ CheckModelApproval"}
+        
+        Preprocess --> Train --> Evaluate --> Condition
+    end
+
+    subgraph registry["Model Registry"]
+        ModelReg["📋 Model Package Group<br/>*-recommender-models<br/>─────────────<br/>• XGBoost artifact (model.bst)<br/>• Feature list (feature_list.pkl)<br/>• Auto-deploy via EventBridge"]
+    end
+
+    S3Raw --> GlueJob
+    GlueJob --> ETLDetails
+    ETLDetails --> S3Proc["📦 S3 Processed<br/>recommender-pipeline/data/"]
+    S3Proc --> Preprocess
+    Condition -->|Approved| ModelReg
+    Condition -->|Rejected| Fail["❌ Fail"]
 ```
-┌──────────────┐    ┌─────────────────┐    ┌────────────────────┐
-│ Data Generator │───▶│  S3 Raw Bucket   │───▶│ SageMaker Pipeline │
-│  (Python)      │    │  experiments/    │    │                    │
-│                │    │  - metadata/     │    │                    │
-│  generates:    │    │  - results/      │    │                    │
-│  - experiments │    │                  │    │                    │
-│  - uplifts     │    │                  │    │                    │
-└──────────────┘    └─────────────────┘    └────────────────────┘
-                                                       │
-                    ┌──────────────────────────────────┘
-                    ▼
-        ┌────────────────────────────────────────────────────┐
-        │              Pipeline Steps                        │
-        │                                                    │
-        │  1. DataPreprocessing (Processing Job)             │
-        │     - Join metadata + results                      │
-        │     - Extract experiment features:                 │
-        │       • num_variants, duration_days                │
-        │       • start_hour, day_of_week, month             │
-        │       • surface, platform, content_scope           │
-        │       • segment_encoded, is_personalised           │
-        │     - Calculate uplift percentages                 │
-        │     - Train/validation split                       │
-        │                                                    │
-        │  2. ModelTraining (Training Job)                   │
-        │     - XGBoost Regressor                            │
-        │     - Hyperparameters:                             │
-        │       • max_depth=8, eta=0.05                      │
-        │       • subsample=0.8, colsample_bytree=0.8        │
-        │       • num_boost_round=400                        │
-        │     - Predicts: uplift_pct                         │
-        │                                                    │
-        │  3. ModelEvaluation (Processing Job)               │
-        │     - RMSE, MAE, R² metrics                        │
-        │     - Thresholds:                                  │
-        │       • RMSE ≤ 5.0                                 │
-        │       • MAE ≤ 3.0                                  │
-        │       • R² ≥ 0.6                                   │
-        │     - Generates model_approval.json                │
-        │                                                    │
-        │  4. CheckModelApproval (Condition)                 │
-        │     - If approved → RegisterModel                  │
-        │     - If rejected → Fail                           │
-        └────────────────────────────────────────────────────┘
-                    │
-                    ▼ (If Approved)
-        ┌────────────────────────────────────────────────────┐
-        │         Model Registry                             │
-        │  - Model Package Group: *-recommender-models       │
-        │  - XGBoost model artifact (model.bst)              │
-        │  - Feature list (feature_list.pkl)                 │
-        │  - Auto-deploy via EventBridge                     │
-        └────────────────────────────────────────────────────┘
-                    │
-                    ▼
-        ┌────────────────────────────────────────────────────┐
-        │          Real-Time Inference                        │
-        │                                                     │
-        │  ┌─────────────────────────────────────────────┐   │
-        │  │ Step 1: Goal Parsing                        │   │
-        │  │                                             │   │
-        │  │  Input: "increase live news at 18:00        │   │
-        │  │          for 16-25s"                        │   │
-        │  │                                             │   │
-        │  │  ┌─────────────┐    ┌─────────────────┐    │   │
-        │  │  │ Regex Parser│ or │ Bedrock (Claude) │    │   │
-        │  │  │  (default)  │    │  (if enabled)   │    │   │
-        │  │  └─────────────┘    └─────────────────┘    │   │
-        │  │                                             │   │
-        │  │  Output: {                                  │   │
-        │  │    segment: "16_25",                        │   │
-        │  │    metric: "live_news_18_consumption",      │   │
-        │  │    time_focus: 18                           │   │
-        │  │  }                                          │   │
-        │  └─────────────────────────────────────────────┘   │
-        │                      │                              │
-        │                      ▼                              │
-        │  ┌─────────────────────────────────────────────┐   │
-        │  │ Step 2: Template Loading                    │   │
-        │  │                                             │   │
-        │  │  Load from template_library.json:           │   │
-        │  │  [                                          │   │
-        │  │    { id: "live_news_push_16_25",            │   │
-        │  │      description: "Push reminder...",       │   │
-        │  │      surface: "push", segment: "16_25",     │   │
-        │  │      ... },                                 │   │
-        │  │    { id: "homepage_layout_test", ... },     │   │
-        │  │    ...                                      │   │
-        │  │  ]                                          │   │
-        │  └─────────────────────────────────────────────┘   │
-        │                      │                              │
-        │                      ▼                              │
-        │  ┌─────────────────────────────────────────────┐   │
-        │  │ Step 3: Featurisation                       │   │
-        │  │                                             │   │
-        │  │  For each template, compute features:       │   │
-        │  │  - num_variants, duration_days              │   │
-        │  │  - start_hour_of_day, start_day_of_week     │   │
-        │  │  - surface, platform, content_scope         │   │
-        │  │  - experiment_type, segment_encoded         │   │
-        │  │  - is_personalised, is_algorithm_change     │   │
-        │  │  - is_copy_only, uses_notifications         │   │
-        │  │                                             │   │
-        │  │  Match parsed goal to template properties   │   │
-        │  └─────────────────────────────────────────────┘   │
-        │                      │                              │
-        │                      ▼                              │
-        │  ┌─────────────────────────────────────────────┐   │
-        │  │ Step 4: Scoring (SageMaker Endpoint)        │   │
-        │  │                                             │   │
-        │  │  Lambda ───▶ SageMaker Endpoint             │   │
-        │  │              (XGBoost model)                │   │
-        │  │                    │                        │   │
-        │  │                    ▼                        │   │
-        │  │  Predict uplift_pct for each candidate     │   │
-        │  │                                             │   │
-        │  │  candidates = [                             │   │
-        │  │    { template_id, features, predicted: 0.12},│   │
-        │  │    { template_id, features, predicted: 0.08},│   │
-        │  │    { template_id, features, predicted: 0.05},│   │
-        │  │    ...                                      │   │
-        │  │  ]                                          │   │
-        │  └─────────────────────────────────────────────┘   │
-        │                      │                              │
-        │                      ▼                              │
-        │  ┌─────────────────────────────────────────────┐   │
-        │  │ Step 5: Ranking & Response                  │   │
-        │  │                                             │   │
-        │  │  Sort by predicted_uplift DESC              │   │
-        │  │  Return top_n (default: 5)                  │   │
-        │  │                                             │   │
-        │  │  Response:                                  │   │
-        │  │  {                                          │   │
-        │  │    "goal": "increase live news...",         │   │
-        │  │    "parsed": { segment, metric, time_focus},│   │
-        │  │    "recommendations": [                     │   │
-        │  │      {                                      │   │
-        │  │        "template_id": "live_news_push_16_25"│   │
-        │  │        "description": "Push reminder...",   │   │
-        │  │        "predicted_uplift": 0.12             │   │
-        │  │      },                                     │   │
-        │  │      ...                                    │   │
-        │  │    ]                                        │   │
-        │  │  }                                          │   │
-        │  └─────────────────────────────────────────────┘   │
-        └────────────────────────────────────────────────────┘
+
+#### Real-Time Inference Flow
+
+```mermaid
+flowchart TB
+    subgraph step1["Step 1: Goal Parsing"]
+        Input["📝 Input:<br/>'increase live news at 18:00<br/>for 16-25s'"]
+        Regex["🔤 Regex Parser<br/>(default)"]
+        Bedrock["🧠 Bedrock (Claude)<br/>(if enabled)"]
+        ParsedOutput["📤 Output:<br/>{<br/>  segment: '16_25',<br/>  metric: 'live_news_18_consumption',<br/>  time_focus: 18<br/>}"]
+        
+        Input --> Regex
+        Input --> Bedrock
+        Regex --> ParsedOutput
+        Bedrock --> ParsedOutput
+    end
+
+    subgraph step2["Step 2: Template Loading"]
+        Templates["📚 template_library.json<br/>─────────────<br/>• live_news_push_16_25<br/>• homepage_layout_test<br/>• ..."]
+    end
+
+    subgraph step3["Step 3: Featurisation"]
+        Features["🔢 Compute Features:<br/>─────────────<br/>• num_variants, duration_days<br/>• start_hour, day_of_week<br/>• surface, platform, content_scope<br/>• segment_encoded, is_personalised<br/>• is_algorithm_change, uses_notifications"]
+    end
+
+    subgraph step4["Step 4: Scoring"]
+        Lambda["λ Lambda"]
+        Endpoint["🤖 SageMaker Endpoint<br/>(XGBoost model)"]
+        Candidates["📊 Candidates:<br/>[<br/>  { template_id, predicted: 0.12 },<br/>  { template_id, predicted: 0.08 },<br/>  { template_id, predicted: 0.05 }<br/>]"]
+        
+        Lambda --> Endpoint --> Candidates
+    end
+
+    subgraph step5["Step 5: Ranking & Response"]
+        Rank["📈 Sort by predicted_uplift DESC<br/>Return top_n (default: 5)"]
+        Response["📤 Response:<br/>{<br/>  'goal': 'increase live news...',<br/>  'parsed': { segment, metric, time_focus },<br/>  'recommendations': [<br/>    {<br/>      'template_id': 'live_news_push_16_25',<br/>      'description': 'Push reminder...',<br/>      'predicted_uplift': 0.12<br/>    }<br/>  ]<br/>}"]
+        
+        Rank --> Response
+    end
+
+    Client["👤 Client Request"] --> step1
+    step1 --> step2
+    step2 --> step3
+    step3 --> step4
+    step4 --> step5
 ```
 
 ## Setup
@@ -247,7 +221,9 @@ python main.py all --upload --bucket my-bucket # Generate and upload to S3
 
 1. **Generate Data**: `make generate-bucketing` creates synthetic user data
 2. **Upload Data**: `make upload-bucketing-data BUCKET=your-bucket`
-3. **Run Pipeline**: SageMaker pipeline runs preprocessing, training, and evaluation
+3. **Run Pipeline**: Execute the Step Functions workflow (recommended) or SageMaker pipeline directly
+   - **Step Functions** (full flow): Runs Glue ETL → SageMaker Pipeline in sequence
+   - **SageMaker only**: Assumes processed data already exists in S3
 4. **Deploy Model**: Approved models are registered in Model Registry, auto-deployed to endpoint
 5. **Bucket Users**: POST to `/bucket` endpoint with a user ID and API key
 
@@ -293,7 +269,9 @@ if (bucket === 'high_value') {
 
 1. **Generate Data**: `make generate-experiment` creates synthetic experiment data
 2. **Upload Data**: `make upload-experiment-data BUCKET=your-bucket`
-3. **Run Pipeline**: SageMaker pipeline runs preprocessing, training, and evaluation
+3. **Run Pipeline**: Execute the Step Functions workflow (recommended) or SageMaker pipeline directly
+   - **Step Functions** (full flow): Runs Glue ETL → SageMaker Pipeline in sequence
+   - **SageMaker only**: Assumes processed data already exists in S3
 4. **Deploy Model**: Approved models are registered in Model Registry, auto-deployed to endpoint
 5. **Get Recommendations**: POST to `/recommend` endpoint with a goal and API key
 
