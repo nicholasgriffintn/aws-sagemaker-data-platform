@@ -19,11 +19,19 @@ import { FrontendStack } from '../lib/stacks/frontend-stack';
 import { DataPipelineStack } from '../lib/stacks/data-pipeline-stack';
 import { grantPipelineStoragePermissions } from '../lib/utils';
 
+interface EndpointConfig {
+  deployEndpoint?: boolean;
+  useServerlessEndpoint?: boolean;
+  serverlessMemorySizeMb?: number;
+  serverlessMaxConcurrency?: number;
+}
+
 interface EnvConfig {
   componentName: string;
   awsAccount: string;
   awsRegion: string;
   private: boolean;
+  endpointConfig?: EndpointConfig;
 }
 
 function getEnv(): string {
@@ -127,6 +135,7 @@ const codeDeployment = new CodeDeploymentStack(
     environmentName: envName,
     componentName: cfg.componentName,
     codeBucket: storage.codeBucket,
+    processedDataBucket: storage.processedDataBucket,
   }
 );
 codeDeployment.addDependency(storage);
@@ -190,6 +199,7 @@ const experimentPipeline = new ExperimentPipelineStack(
     lambdaExecutionRole: iam.lambdaExecutionRole,
     userFeaturesTableName: featureInfra.userFeaturesTable.tableName,
     featureGroupName: featureInfra.featureGroupName,
+    endpointConfig: cfg.endpointConfig,
   }
 );
 experimentPipeline.addDependency(lakeFormation);
@@ -211,6 +221,7 @@ const recommenderPipeline = new RecommenderPipelineStack(
     dataKey: storage.kmsKey,
     pipelineRole: iam.pipelineRole,
     lambdaExecutionRole: iam.lambdaExecutionRole,
+    endpointConfig: cfg.endpointConfig,
   }
 );
 recommenderPipeline.addDependency(lakeFormation);

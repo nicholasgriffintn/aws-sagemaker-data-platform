@@ -28,6 +28,9 @@ export interface EndpointProps {
     EndpointMonitoringProps,
     'endpointName' | 'componentName' | 'environmentName'
   >;
+  useServerless?: boolean;
+  serverlessMemorySizeMb?: number;
+  serverlessMaxConcurrency?: number;
 }
 
 export interface EndpointResources {
@@ -87,19 +90,34 @@ export class Endpoint extends Construct {
     const dataCapturePrefix =
       props.dataCapturePrefix ?? `${props.pipelineName}-pipeline/data-capture/`;
 
+    const modelName =
+      model.modelName ||
+      `${props.componentName}-${props.environmentName}-${props.pipelineName}-model`;
+
+    const productionVariants = props.useServerless
+      ? [
+          {
+            modelName,
+            variantName: 'primary',
+            serverlessConfig: {
+              memorySizeInMb: props.serverlessMemorySizeMb ?? 2048,
+              maxConcurrency: props.serverlessMaxConcurrency ?? 5,
+            },
+          },
+        ]
+      : [
+          {
+            modelName,
+            variantName: 'primary',
+            initialInstanceCount: 1,
+            instanceType: props.primaryInstanceType,
+            initialVariantWeight: 1,
+          },
+        ];
+
     const endpointConfig = new CfnEndpointConfig(this, 'EndpointConfig', {
       endpointConfigName: `${props.componentName}-${props.environmentName}-${props.pipelineName}-endpoint-config`,
-      productionVariants: [
-        {
-          modelName:
-            model.modelName ||
-            `${props.componentName}-${props.environmentName}-${props.pipelineName}-model`,
-          variantName: 'primary',
-          initialInstanceCount: 1,
-          instanceType: props.primaryInstanceType,
-          initialVariantWeight: 1,
-        },
-      ],
+      productionVariants,
       kmsKeyId: props.kmsKeyId,
       dataCaptureConfig: {
         enableCapture: true,

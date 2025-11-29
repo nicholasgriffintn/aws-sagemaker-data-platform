@@ -14,7 +14,7 @@ export interface MLDashboardProps {
   componentName: string;
   environmentName: string;
   pipelineName: string;
-  endpointName: string;
+  endpointName?: string;
   lambdaFunctionName?: string;
   apiName?: string;
 }
@@ -51,171 +51,169 @@ export class MLDashboard extends Construct {
       })
     );
 
-    // SageMaker Endpoint Metrics
-    const endpointDimensions = {
-      EndpointName: props.endpointName,
-      VariantName: 'primary',
-    };
+    if (props.endpointName) {
+      const endpointDimensions = {
+        EndpointName: props.endpointName,
+        VariantName: 'primary',
+      };
 
-    this.dashboard.addWidgets(
-      new TextWidget({
-        markdown: '## SageMaker Endpoint Metrics',
-        width: 24,
-        height: 1,
-      })
-    );
+      this.dashboard.addWidgets(
+        new TextWidget({
+          markdown: '## SageMaker Endpoint Metrics',
+          width: 24,
+          height: 1,
+        })
+      );
 
-    // Single value widgets for key metrics
-    this.dashboard.addWidgets(
-      new Row(
-        new SingleValueWidget({
-          title: 'Total Invocations (1h)',
-          metrics: [
+      this.dashboard.addWidgets(
+        new Row(
+          new SingleValueWidget({
+            title: 'Total Invocations (1h)',
+            metrics: [
+              new Metric({
+                namespace: 'AWS/SageMaker',
+                metricName: 'Invocations',
+                dimensionsMap: endpointDimensions,
+                statistic: 'Sum',
+                period: Duration.hours(1),
+              }),
+            ],
+            width: 6,
+            height: 4,
+          }),
+          new SingleValueWidget({
+            title: 'Avg Model Latency (ms)',
+            metrics: [
+              new Metric({
+                namespace: 'AWS/SageMaker',
+                metricName: 'ModelLatency',
+                dimensionsMap: endpointDimensions,
+                statistic: 'Average',
+                period: Duration.minutes(5),
+              }),
+            ],
+            width: 6,
+            height: 4,
+          }),
+          new SingleValueWidget({
+            title: '4XX Errors (1h)',
+            metrics: [
+              new Metric({
+                namespace: 'AWS/SageMaker',
+                metricName: 'Invocation4XXErrors',
+                dimensionsMap: endpointDimensions,
+                statistic: 'Sum',
+                period: Duration.hours(1),
+              }),
+            ],
+            width: 6,
+            height: 4,
+          }),
+          new SingleValueWidget({
+            title: '5XX Errors (1h)',
+            metrics: [
+              new Metric({
+                namespace: 'AWS/SageMaker',
+                metricName: 'Invocation5XXErrors',
+                dimensionsMap: endpointDimensions,
+                statistic: 'Sum',
+                period: Duration.hours(1),
+              }),
+            ],
+            width: 6,
+            height: 4,
+          })
+        )
+      );
+
+      this.dashboard.addWidgets(
+        new GraphWidget({
+          title: 'Invocations Over Time',
+          left: [
             new Metric({
               namespace: 'AWS/SageMaker',
               metricName: 'Invocations',
               dimensionsMap: endpointDimensions,
               statistic: 'Sum',
-              period: Duration.hours(1),
+              period: Duration.minutes(1),
             }),
           ],
-          width: 6,
-          height: 4,
+          width: 12,
+          height: 6,
         }),
-        new SingleValueWidget({
-          title: 'Avg Model Latency (ms)',
-          metrics: [
+        new GraphWidget({
+          title: 'Model Latency (p50, p90, p99)',
+          left: [
             new Metric({
               namespace: 'AWS/SageMaker',
               metricName: 'ModelLatency',
               dimensionsMap: endpointDimensions,
-              statistic: 'Average',
-              period: Duration.minutes(5),
+              statistic: 'p50',
+              period: Duration.minutes(1),
+              label: 'p50',
+            }),
+            new Metric({
+              namespace: 'AWS/SageMaker',
+              metricName: 'ModelLatency',
+              dimensionsMap: endpointDimensions,
+              statistic: 'p90',
+              period: Duration.minutes(1),
+              label: 'p90',
+            }),
+            new Metric({
+              namespace: 'AWS/SageMaker',
+              metricName: 'ModelLatency',
+              dimensionsMap: endpointDimensions,
+              statistic: 'p99',
+              period: Duration.minutes(1),
+              label: 'p99',
             }),
           ],
-          width: 6,
-          height: 4,
-        }),
-        new SingleValueWidget({
-          title: '4XX Errors (1h)',
-          metrics: [
+          width: 12,
+          height: 6,
+        })
+      );
+
+      this.dashboard.addWidgets(
+        new GraphWidget({
+          title: 'Error Rates',
+          left: [
             new Metric({
               namespace: 'AWS/SageMaker',
               metricName: 'Invocation4XXErrors',
               dimensionsMap: endpointDimensions,
               statistic: 'Sum',
-              period: Duration.hours(1),
+              period: Duration.minutes(1),
+              label: '4XX Errors',
             }),
-          ],
-          width: 6,
-          height: 4,
-        }),
-        new SingleValueWidget({
-          title: '5XX Errors (1h)',
-          metrics: [
             new Metric({
               namespace: 'AWS/SageMaker',
               metricName: 'Invocation5XXErrors',
               dimensionsMap: endpointDimensions,
               statistic: 'Sum',
-              period: Duration.hours(1),
+              period: Duration.minutes(1),
+              label: '5XX Errors',
             }),
           ],
-          width: 6,
-          height: 4,
+          width: 12,
+          height: 6,
+        }),
+        new GraphWidget({
+          title: 'Overhead Latency',
+          left: [
+            new Metric({
+              namespace: 'AWS/SageMaker',
+              metricName: 'OverheadLatency',
+              dimensionsMap: endpointDimensions,
+              statistic: 'Average',
+              period: Duration.minutes(1),
+            }),
+          ],
+          width: 12,
+          height: 6,
         })
-      )
-    );
-
-    // Endpoint metrics graphs
-    this.dashboard.addWidgets(
-      new GraphWidget({
-        title: 'Invocations Over Time',
-        left: [
-          new Metric({
-            namespace: 'AWS/SageMaker',
-            metricName: 'Invocations',
-            dimensionsMap: endpointDimensions,
-            statistic: 'Sum',
-            period: Duration.minutes(1),
-          }),
-        ],
-        width: 12,
-        height: 6,
-      }),
-      new GraphWidget({
-        title: 'Model Latency (p50, p90, p99)',
-        left: [
-          new Metric({
-            namespace: 'AWS/SageMaker',
-            metricName: 'ModelLatency',
-            dimensionsMap: endpointDimensions,
-            statistic: 'p50',
-            period: Duration.minutes(1),
-            label: 'p50',
-          }),
-          new Metric({
-            namespace: 'AWS/SageMaker',
-            metricName: 'ModelLatency',
-            dimensionsMap: endpointDimensions,
-            statistic: 'p90',
-            period: Duration.minutes(1),
-            label: 'p90',
-          }),
-          new Metric({
-            namespace: 'AWS/SageMaker',
-            metricName: 'ModelLatency',
-            dimensionsMap: endpointDimensions,
-            statistic: 'p99',
-            period: Duration.minutes(1),
-            label: 'p99',
-          }),
-        ],
-        width: 12,
-        height: 6,
-      })
-    );
-
-    // Error rate graph
-    this.dashboard.addWidgets(
-      new GraphWidget({
-        title: 'Error Rates',
-        left: [
-          new Metric({
-            namespace: 'AWS/SageMaker',
-            metricName: 'Invocation4XXErrors',
-            dimensionsMap: endpointDimensions,
-            statistic: 'Sum',
-            period: Duration.minutes(1),
-            label: '4XX Errors',
-          }),
-          new Metric({
-            namespace: 'AWS/SageMaker',
-            metricName: 'Invocation5XXErrors',
-            dimensionsMap: endpointDimensions,
-            statistic: 'Sum',
-            period: Duration.minutes(1),
-            label: '5XX Errors',
-          }),
-        ],
-        width: 12,
-        height: 6,
-      }),
-      new GraphWidget({
-        title: 'Overhead Latency',
-        left: [
-          new Metric({
-            namespace: 'AWS/SageMaker',
-            metricName: 'OverheadLatency',
-            dimensionsMap: endpointDimensions,
-            statistic: 'Average',
-            period: Duration.minutes(1),
-          }),
-        ],
-        width: 12,
-        height: 6,
-      })
-    );
+      );
+    }
 
     // Lambda Metrics (if provided)
     if (props.lambdaFunctionName) {

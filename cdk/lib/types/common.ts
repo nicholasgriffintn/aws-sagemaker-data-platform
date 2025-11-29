@@ -26,6 +26,13 @@ export interface RoleAwareProps {
   lambdaExecutionRole: Role;
 }
 
+export interface EndpointConfig {
+  deployEndpoint?: boolean;
+  useServerlessEndpoint?: boolean;
+  serverlessMemorySizeMb?: number;
+  serverlessMaxConcurrency?: number;
+}
+
 export interface PipelineStackProps
   extends BaseStackProps,
     VpcAwareProps,
@@ -36,4 +43,5 @@ export interface PipelineStackProps
   enableScheduledRetraining?: boolean;
   retrainingSchedule?: string;
   enableModelAutoDeploy?: boolean;
+  endpointConfig?: EndpointConfig;
 }

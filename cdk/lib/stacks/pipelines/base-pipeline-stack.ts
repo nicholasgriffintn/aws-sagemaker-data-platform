@@ -52,7 +52,7 @@ export interface MLPipelineConfig {
  */
 export abstract class BasePipelineStack extends Stack {
   public readonly pipeline: CfnPipeline;
-  public readonly endpoint: CfnEndpoint;
+  public readonly endpoint?: CfnEndpoint;
   public readonly api: apigw.RestApi;
   public readonly primaryInstanceType: string;
   public readonly secondaryInstanceType: string;
@@ -107,30 +107,33 @@ export abstract class BasePipelineStack extends Stack {
 
     this.pipeline = sagemakerPipeline.pipeline;
 
-    const endpointConstruct = new Endpoint(
-      this,
-      `${config.pipelineName}Endpoint`,
-      {
-        componentName: props.componentName,
-        environmentName: props.environmentName,
-        processedDataBucket: props.processedDataBucket,
-        codeBucket: props.codeBucket,
-        pipelineRole: props.pipelineRole,
-        pipelineName: config.pipelineName,
-        vpc: props.vpc,
-        securityGroup: props.securityGroup,
-        sagemakerImageUri: this.sagemakerImageUri,
-        modelInterfaceScript: `${config.scriptDirectory}/inference.py`,
-        kmsKeyId: props.dataKey.keyId,
-        primaryInstanceType: this.primaryInstanceType,
-        monitoring: {
-          pipelineName: config.pipelineName,
-          invocationTargetValue: 100,
-        },
-      }
-    );
+    const deployEndpoint = props.endpointConfig?.deployEndpoint ?? false;
 
-    this.endpoint = endpointConstruct.resources.endpoint;
+    const endpointConstruct = deployEndpoint
+      ? new Endpoint(this, `${config.pipelineName}Endpoint`, {
+          componentName: props.componentName,
+          environmentName: props.environmentName,
+          processedDataBucket: props.processedDataBucket,
+          codeBucket: props.codeBucket,
+          pipelineRole: props.pipelineRole,
+          pipelineName: config.pipelineName,
+          vpc: props.vpc,
+          securityGroup: props.securityGroup,
+          sagemakerImageUri: this.sagemakerImageUri,
+          modelInterfaceScript: `${config.scriptDirectory}/inference.py`,
+          kmsKeyId: props.dataKey.keyId,
+          primaryInstanceType: this.primaryInstanceType,
+          useServerless: props.endpointConfig?.useServerlessEndpoint,
+          serverlessMemorySizeMb: props.endpointConfig?.serverlessMemorySizeMb,
+          serverlessMaxConcurrency: props.endpointConfig?.serverlessMaxConcurrency,
+          monitoring: {
+            pipelineName: config.pipelineName,
+            invocationTargetValue: 100,
+          },
+        })
+      : undefined;
+
+    this.endpoint = endpointConstruct?.resources.endpoint;
 
     const lambdaFunctionName = `${props.componentName}-${props.environmentName}-${config.pipelineName}`;
 
@@ -139,6 +142,10 @@ export abstract class BasePipelineStack extends Stack {
       hostPath: sharedPackagePath,
       containerPath: '/shared/platform_shared',
     };
+
+    const endpointName = deployEndpoint
+      ? `${props.componentName}-${props.environmentName}-${config.pipelineName}-endpoint`
+      : '';
 
     const pipelineLambda = new lambda.Function(
       this,
@@ -171,7 +178,7 @@ export abstract class BasePipelineStack extends Stack {
         securityGroups: [props.securityGroup],
         tracing: Tracing.ACTIVE,
         environment: {
-          ENDPOINT_NAME: endpointConstruct.resources.endpoint.endpointName!,
+          ...(deployEndpoint && { ENDPOINT_NAME: endpointName }),
           AWS_XRAY_DAEMON_ADDRESS: '127.0.0.1:2000',
           AWS_XRAY_CONTEXT_MISSING: 'LOG_ERROR',
           ...config.lambdaEnvironment,
@@ -210,7 +217,7 @@ export abstract class BasePipelineStack extends Stack {
       );
     }
 
-    if (props.enableModelAutoDeploy ?? true) {
+    if (deployEndpoint && (props.enableModelAutoDeploy ?? true)) {
       new ModelAutoDeploy(this, `${config.pipelineName}ModelAutoDeploy`, {
         componentName: props.componentName,
         environmentName: props.environmentName,
@@ -219,7 +226,7 @@ export abstract class BasePipelineStack extends Stack {
         vpc: props.vpc,
         securityGroup: props.securityGroup,
         kmsKey: props.dataKey,
-        endpointName: endpointConstruct.resources.endpoint.endpointName!,
+        endpointName,
         instanceType: this.primaryInstanceType,
       });
     }
@@ -228,7 +235,7 @@ export abstract class BasePipelineStack extends Stack {
       componentName: props.componentName,
       environmentName: props.environmentName,
       pipelineName: config.pipelineName,
-      endpointName: endpointConstruct.resources.endpoint.endpointName!,
+      endpointName: deployEndpoint ? endpointName : undefined,
       lambdaFunctionName,
       apiName: `${props.componentName}-${props.environmentName}-${config.apiDisplayName}`,
     });
@@ -247,7 +254,7 @@ export abstract class BasePipelineStack extends Stack {
       );
     }
 
-    if (props.alertEmail) {
+    if (deployEndpoint && props.alertEmail && endpointConstruct) {
       endpointConstruct.resources.alertsTopic.addSubscription(
         new EmailSubscription(props.alertEmail)
       );
@@ -256,39 +263,47 @@ export abstract class BasePipelineStack extends Stack {
     this.registerOutputs({
       componentName: props.componentName,
       pipelineName: `${props.componentName}-${props.environmentName}-${pipelinePrefix}`,
-      endpointName: `${props.componentName}-${props.environmentName}-${config.pipelineName}-endpoint`,
+      endpointName: deployEndpoint ? endpointName : undefined,
       apiUrl: this.api.url,
-      dataCaptureUri: `s3://${props.processedDataBucket.bucketName}/${pipelinePrefix}/data-capture/`,
-      alertsTopicArn: endpointConstruct.resources.alertsTopic.topicArn,
+      dataCaptureUri: deployEndpoint
+        ? `s3://${props.processedDataBucket.bucketName}/${pipelinePrefix}/data-capture/`
+        : undefined,
+      alertsTopicArn: endpointConstruct?.resources.alertsTopic.topicArn,
     });
   }
 
   private registerOutputs(params: {
     componentName: string;
     pipelineName: string;
-    endpointName: string;
+    endpointName?: string;
     apiUrl: string;
-    dataCaptureUri: string;
-    alertsTopicArn: string;
+    dataCaptureUri?: string;
+    alertsTopicArn?: string;
   }): void {
     new CfnOutput(this, `${params.componentName}-pipeline-name`, {
       value: params.pipelineName,
     });
 
-    new CfnOutput(this, `${params.componentName}-endpoint-name`, {
-      value: params.endpointName,
-    });
+    if (params.endpointName) {
+      new CfnOutput(this, `${params.componentName}-endpoint-name`, {
+        value: params.endpointName,
+      });
+    }
 
     new CfnOutput(this, `${params.componentName}-api-url`, {
       value: params.apiUrl,
     });
 
-    new CfnOutput(this, `${params.componentName}-alerts-topic-arn`, {
-      value: params.alertsTopicArn,
-    });
+    if (params.alertsTopicArn) {
+      new CfnOutput(this, `${params.componentName}-alerts-topic-arn`, {
+        value: params.alertsTopicArn,
+      });
+    }
 
-    new CfnOutput(this, `${params.componentName}-data-capture-uri`, {
-      value: params.dataCaptureUri,
-    });
+    if (params.dataCaptureUri) {
+      new CfnOutput(this, `${params.componentName}-data-capture-uri`, {
+        value: params.dataCaptureUri,
+      });
+    }
   }
 }

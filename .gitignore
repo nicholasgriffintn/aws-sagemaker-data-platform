@@ -146,3 +146,5 @@ cdk.context.json
 __pycache__/
 .venv/
 data-generator/output/
+
+.DS_Store
