@@ -40,6 +40,9 @@ def load_parquet_files(directory):
 def numeric_cast(df):
     """Convert boolean and categorical columns to numeric."""
     df = df.copy()
+    drop_cols = [c for c in df.columns if c in ['processed_at', 'created_at', 'updated_at', 'timestamp']]
+    if drop_cols:
+        df = df.drop(columns=drop_cols)
     for col in df.columns:
         if df[col].dtype == "bool":
             df[col] = df[col].astype("int32")
