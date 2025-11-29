@@ -182,6 +182,10 @@ export class SageMakerPipeline extends Construct {
                 },
               ],
             },
+            CacheConfig: {
+              EnableCache: true,
+              ExpireAfter: '30d',
+            },
           },
         },
         {
@@ -246,6 +250,10 @@ export class SageMakerPipeline extends Construct {
               ),
             },
             EnableNetworkIsolation: false,
+            CacheConfig: {
+              EnableCache: true,
+              ExpireAfter: '30d',
+            },
           },
         },
         {
@@ -317,6 +325,10 @@ export class SageMakerPipeline extends Construct {
                   },
                 },
               ],
+            },
+            CacheConfig: {
+              EnableCache: true,
+              ExpireAfter: '30d',
             },
           },
           PropertyFiles: [
@@ -398,6 +410,10 @@ export class SageMakerPipeline extends Construct {
                 },
               },
             ],
+            CacheConfig: {
+              EnableCache: true,
+              ExpireAfter: '30d',
+            },
           },
         },
       ],
