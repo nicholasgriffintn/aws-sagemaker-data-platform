@@ -1,10 +1,10 @@
 import os
 from functools import lru_cache
-from typing import Any
+from typing import Any, Dict
 
 
 @lru_cache
-def get_config() -> dict[str, Any]:
+def get_config() -> Dict[str, Any]:
     """
     Get the configuration for the platform.
 

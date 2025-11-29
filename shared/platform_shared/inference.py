@@ -1,13 +1,13 @@
 import json
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import pandas as pd
 
 
 class BaseInferenceHandler:
 
-    def __init__(self, logger: logging.Logger | None = None):
+    def __init__(self, logger: Optional[logging.Logger] = None):
         self.logger = logger or logging.getLogger(__name__)
         self.model: Any = None
 

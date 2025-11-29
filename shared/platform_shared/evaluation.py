@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-from typing import Any, Literal
+from typing import Any, Dict, Literal, Optional, Tuple
 
 import joblib
 
@@ -11,7 +11,7 @@ from .metrics import MetricsTracker
 class ModelEvaluator:
     def __init__(
         self,
-        logger: logging.Logger | None = None,
+        logger: Optional[logging.Logger] = None,
         model_type: Literal['classification', 'regression'] = 'classification'
     ):
         self.logger = logger or logging.getLogger(__name__)
@@ -19,7 +19,7 @@ class ModelEvaluator:
         self._metrics_tracker = MetricsTracker(self.logger)
 
     @property
-    def metrics(self) -> dict[str, float]:
+    def metrics(self) -> Dict[str, float]:
         return self._metrics_tracker.get_metrics()
 
     def load_model(self, model_path: str, extension: str = '.pkl') -> Any:
@@ -49,15 +49,15 @@ class ModelEvaluator:
         self,
         y_true: Any,
         y_pred: Any,
-        y_pred_proba: Any | None = None
-    ) -> dict[str, float]:
+        y_pred_proba: Optional[Any] = None
+    ) -> Dict[str, float]:
         if self.model_type == 'classification':
             return self._metrics_tracker.compute_classification_metrics(
                 y_true, y_pred, y_pred_proba
             )
         return self._metrics_tracker.compute_regression_metrics(y_true, y_pred)
 
-    def check_approval(self, thresholds: dict[str, tuple[str, float]]) -> dict:
+    def check_approval(self, thresholds: Dict[str, Tuple[str, float]]) -> dict:
         approval_criteria = {}
         
         for metric_name, (operator, threshold) in thresholds.items():

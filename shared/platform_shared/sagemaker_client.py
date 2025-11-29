@@ -1,4 +1,6 @@
 import json
+from typing import Dict, List, Union
+
 import boto3
 
 
@@ -7,7 +9,7 @@ class SageMakerPredictor:
         self.client = boto3.client("sagemaker-runtime")
         self.endpoint_name = endpoint_name
 
-    def predict(self, payload: dict | list) -> dict | list:
+    def predict(self, payload: Union[Dict, List]) -> Union[Dict, List]:
         response = self.client.invoke_endpoint(
             EndpointName=self.endpoint_name,
             ContentType="application/json",
@@ -19,7 +21,7 @@ class SageMakerPredictor:
             return result[0]
         return result
 
-    def predict_batch(self, payloads: list[dict]) -> list[dict]:
+    def predict_batch(self, payloads: List[Dict]) -> List[Dict]:
         response = self.client.invoke_endpoint(
             EndpointName=self.endpoint_name,
             ContentType="application/json",

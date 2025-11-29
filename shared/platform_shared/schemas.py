@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict
 
 USER_FEATURE_NAMES = [
     'age',
@@ -30,7 +30,7 @@ ENGINEERED_FEATURE_NAMES = [
     'spending_tier_encoded',
 ]
 
-USER_FEATURE_VALIDATION: dict[str, dict[str, Any]] = {
+USER_FEATURE_VALIDATION: Dict[str, Dict[str, Any]] = {
     'age': {'type': (int, float), 'range': (0, 120)},
     'session_count': {'type': (int, float), 'range': (0, None)},
     'avg_session_duration': {'type': (int, float), 'range': (0, None)},
@@ -43,7 +43,7 @@ USER_FEATURE_VALIDATION: dict[str, dict[str, Any]] = {
     'location': {'type': str, 'range': None},
 }
 
-USER_FEATURE_DEFAULTS: dict[str, Any] = {
+USER_FEATURE_DEFAULTS: Dict[str, Any] = {
     'age': 30,
     'session_count': 0,
     'avg_session_duration': 0.0,

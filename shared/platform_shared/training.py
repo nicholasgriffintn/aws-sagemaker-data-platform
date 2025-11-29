@@ -2,7 +2,7 @@ import os
 import json
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 import joblib
 
@@ -26,7 +26,7 @@ def save_model_artifacts(
     model_dir: str,
     model: Any,
     metrics: dict,
-    metadata: dict | None = None,
+    metadata: Optional[dict] = None,
     model_filename: str = 'model.pkl'
 ) -> None:
     os.makedirs(model_dir, exist_ok=True)

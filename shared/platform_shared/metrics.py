@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, Dict, Optional
 
 from sklearn.metrics import (
     accuracy_score,
@@ -14,16 +14,16 @@ from sklearn.metrics import (
 
 
 class MetricsTracker:
-    def __init__(self, logger: logging.Logger | None = None):
+    def __init__(self, logger: Optional[logging.Logger] = None):
         self.logger = logger or logging.getLogger(__name__)
-        self.metrics: dict[str, float] = {}
+        self.metrics: Dict[str, float] = {}
 
     def compute_classification_metrics(
         self,
         y_true: Any,
         y_pred: Any,
-        y_pred_proba: Any | None = None
-    ) -> dict[str, float]:
+        y_pred_proba: Optional[Any] = None
+    ) -> Dict[str, float]:
         self.metrics = {
             'accuracy': float(accuracy_score(y_true, y_pred)),
             'precision': float(precision_score(y_true, y_pred, zero_division=0)),
@@ -44,7 +44,7 @@ class MetricsTracker:
         self,
         y_true: Any,
         y_pred: Any
-    ) -> dict[str, float]:
+    ) -> Dict[str, float]:
         self.metrics = {
             'mse': float(mean_squared_error(y_true, y_pred)),
             'rmse': float(mean_squared_error(y_true, y_pred, squared=False)),
@@ -58,6 +58,6 @@ class MetricsTracker:
     def _log_metrics(self) -> None:
         self.logger.info(f"Metrics: {self.metrics}")
 
-    def get_metrics(self) -> dict[str, float]:
+    def get_metrics(self) -> Dict[str, float]:
         return self.metrics
 
