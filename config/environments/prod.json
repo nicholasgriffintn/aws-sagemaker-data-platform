@@ -5,6 +5,7 @@
     "awsRegion": "eu-west-1",
     "private": true,
     "endpointConfig": {
+        "useServerless": true,
         "deployEndpoint": false
     }
 }

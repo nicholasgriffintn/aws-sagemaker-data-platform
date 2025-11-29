@@ -31,11 +31,17 @@ Edit config/environments/dev.json with your AWS account ID:
   "componentName": "aws-ml-platform",
   "awsAccount": "YOUR_AWS_ACCOUNT_ID",
   "awsRegion": "eu-west-1",
-  "private": false
+  "private": false,
+  "endpointConfig": {
+    "deployEndpoint": false,
+    "useServerless": true
+  }
 }
 ```
 
 Replace YOUR_AWS_ACCOUNT_ID with the account ID from aws sts get-caller-identity.
+
+Note: `deployEndpoint` is `false` by default. Enable it after training your first model (see Step 10).
 
 ## Step 3: Install All Dependencies
 
@@ -150,9 +156,32 @@ aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recom
 - **Glue ETL Jobs**: AWS Console → AWS Glue → ETL Jobs → Job runs
 - **SageMaker Pipelines**: AWS Console → SageMaker → Pipelines
 
-## Step 10: Test the APIs
+## Step 10: Enable Endpoint Deployment
 
-Once the pipelines complete and endpoints are deployed, get the API URLs from CloudFormation outputs:
+By default, SageMaker endpoints are not deployed to avoid costs during initial setup. Once your pipeline has successfully trained a model, enable endpoint deployment:
+
+1. Edit `config/environments/dev.json`:
+
+```json
+{
+  "endpointConfig": {
+    "deployEndpoint": true,
+    "useServerless": true
+  }
+}
+```
+
+2. Redeploy to create the endpoints:
+
+```bash
+make deploy
+```
+
+Setting `useServerless: true` uses SageMaker Serverless Inference which scales to zero when idle. For production workloads with consistent traffic, set `useServerless: false` to use real-time endpoints.
+
+## Step 12: Test the APIs
+
+Once the endpoints are deployed, get the API URLs from CloudFormation outputs:
 
 ```bash
 # Get API Gateway URLs
@@ -181,7 +210,7 @@ curl -X POST https://YOUR_API_URL/bucket \
   -d '{"user_id": "user123"}'
 ```
 
-## Step 11: Access SageMaker Studio
+## Step 13: Access SageMaker Studio
 
 Go to AWS Console → SageMaker → Domains and open your studio to explore:
 
@@ -190,7 +219,7 @@ Go to AWS Console → SageMaker → Domains and open your studio to explore:
 - Feature Store
 - Pipeline executions
 
-## Step 12: View the Frontend
+## Step 14: View the Frontend
 
 Get the CloudFront URL:
 
@@ -200,7 +229,7 @@ aws cloudformation describe-stacks \
   --query 'Stacks[0].Outputs' --output table
 ```
 
-## Step 13: Clean Up
+## Step 15: Clean Up
 
 ```bash
 make destroy

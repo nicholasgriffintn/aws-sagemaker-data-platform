@@ -1,8 +1,6 @@
 import json
 import os
 
-import pandas as pd
-
 from platform_shared import (
     require,
     handle_errors,
@@ -21,6 +19,8 @@ predictor = SageMakerPredictor(require('endpoint_name'))
 TOP_N_MIN = 1
 TOP_N_MAX = 100
 TOP_N_DEFAULT = 5
+
+EXCLUDED_KEYS = {"template_id", "description"}
 
 
 def load_templates():
@@ -44,10 +44,11 @@ def score_candidates(candidates):
     Returns:
         List of candidates with the predicted uplift.
     """
-    df = pd.DataFrame(candidates)
-
-    payload = df.drop(columns=["template_id"]).to_json(orient="records")
-    result = predictor.predict(json.loads(payload))
+    payload = [
+        {k: v for k, v in c.items() if k not in EXCLUDED_KEYS}
+        for c in candidates
+    ]
+    result = predictor.predict(payload)
 
     preds = result["predictions"] if isinstance(result, dict) else result
 

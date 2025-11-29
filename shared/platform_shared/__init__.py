@@ -21,7 +21,14 @@ from .sagemaker_client import SageMakerPredictor
 from .training import TrainingConfig, setup_logging, save_model_artifacts
 from .metrics import MetricsTracker
 from .evaluation import ModelEvaluator
-from .inference import BaseInferenceHandler
+
+
+def __getattr__(name):
+    """Lazy import for modules with heavy dependencies."""
+    if name == 'BaseInferenceHandler':
+        from .inference import BaseInferenceHandler
+        return BaseInferenceHandler
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 __all__ = [
     'USER_FEATURE_NAMES',
