@@ -2,6 +2,8 @@ import { CfnOutput, Stack, StackProps } from 'aws-cdk-lib';
 import { SecurityGroup, Vpc } from 'aws-cdk-lib/aws-ec2';
 import { Role } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as apigw from 'aws-cdk-lib/aws-apigateway';
 import { CfnEndpoint, CfnPipeline } from 'aws-cdk-lib/aws-sagemaker';
 import { Bucket } from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
@@ -21,6 +23,7 @@ export interface ExperimentPipelineStackProps extends StackProps {
   readonly codeBucket: Bucket;
   readonly dataKey: Key;
   readonly pipelineRole: Role;
+  readonly lambdaExecutionRole: Role;
 }
 
 /**
@@ -29,13 +32,15 @@ export interface ExperimentPipelineStackProps extends StackProps {
  * This stack creates the user bucketing ML pipeline including:
  * - SageMaker Pipeline for preprocessing, training, and evaluation
  * - SageMaker Endpoint for real-time inference
+ * - Lambda function and API Gateway for user bucketing
  * - Monitoring and alerts
  *
  * Data is generated using the data-generator tool and uploaded to S3.
  */
 export class ExperimentPipelineStack extends Stack {
   public readonly pipeline: CfnPipeline;
-  public readonly experimentEndpoint: CfnEndpoint;
+  public readonly bucketingEndpoint: CfnEndpoint;
+  public readonly api: apigw.RestApi;
   public readonly imageId: string;
   public readonly secondaryImageId: string;
 
@@ -102,13 +107,35 @@ export class ExperimentPipelineStack extends Stack {
       },
     });
 
-    this.experimentEndpoint = endpoint.resources.endpoint;
+    this.bucketingEndpoint = endpoint.resources.endpoint;
+
+    // Lambda function for user bucketing API
+    const bucketingLambda = new lambda.Function(this, 'BucketingLambda', {
+      runtime: lambda.Runtime.PYTHON_3_12,
+      handler: 'handler.handler',
+      code: lambda.Code.fromAsset('lambdas/bucketing'),
+      role: props.lambdaExecutionRole,
+      environment: {
+        ENDPOINT_NAME: endpoint.resources.endpoint.endpointName!,
+        FEATURE_SOURCE: 'mock', // Change to 'dynamodb' when ready
+      },
+    });
+
+    // API Gateway for user bucketing
+    this.api = new apigw.RestApi(this, 'BucketingApi', {
+      restApiName: `${props.componentName}-${props.environmentName}-User-Bucketing`,
+      description: 'API for user bucketing and experiment assignment',
+    });
+
+    const bucket = this.api.root.addResource('bucket');
+    bucket.addMethod('POST', new apigw.LambdaIntegration(bucketingLambda));
 
     this.registerOutputs({
       componentName: props.componentName,
       environmentName: props.environmentName,
       pipelineName: pipelineStackName,
       endpointName: endpointStackName,
+      apiUrl: this.api.url,
       dataCaptureUri: `s3://${props.processedDataBucket.bucketName}/bucketing-pipeline/data-capture/`,
       alertsTopicArn: endpoint.resources.alertsTopic.topicArn,
     });
@@ -119,6 +146,7 @@ export class ExperimentPipelineStack extends Stack {
     environmentName: string;
     pipelineName: string;
     endpointName: string;
+    apiUrl: string;
     dataCaptureUri: string;
     alertsTopicArn: string;
   }) {
@@ -130,6 +158,11 @@ export class ExperimentPipelineStack extends Stack {
     new CfnOutput(this, `${params.componentName}-endpoint-name`, {
       value: params.endpointName,
       description: 'Name of the user bucketing inference endpoint',
+    });
+
+    new CfnOutput(this, `${params.componentName}-api-url`, {
+      value: params.apiUrl,
+      description: 'URL of the user bucketing API',
     });
 
     new CfnOutput(this, `${params.componentName}-alerts-topic-arn`, {

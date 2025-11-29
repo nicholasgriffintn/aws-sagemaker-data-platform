@@ -160,6 +160,7 @@ new UserProfileStack(app, `${cfg.componentName}-UserProfile-${envName}`, {
 
 // User Bucketing Pipeline
 // Uses SageMaker pipelines for preprocessing, training, and inference
+// Includes API Gateway for user bucketing
 const experimentPipeline = new ExperimentPipelineStack(
   app,
   `${cfg.componentName}-ExperimentPipeline-${envName}`,
@@ -174,6 +175,7 @@ const experimentPipeline = new ExperimentPipelineStack(
     codeBucket: storage.codeBucket,
     dataKey: storage.kmsKey,
     pipelineRole: iam.pipelineRole,
+    lambdaExecutionRole: iam.pipelineRole,
   }
 );
 experimentPipeline.addDependency(lakeFormation);

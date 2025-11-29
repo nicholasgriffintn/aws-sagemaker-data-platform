@@ -13,12 +13,9 @@ A modular AWS SageMaker platform that provides shared infrastructure for multipl
 │  ┌─────────────────────────┐    ┌─────────────────────────────┐ │
 │  │   Bucketing Pipeline    │    │   Recommender Pipeline      │ │
 │  │  ├─ SageMaker Pipeline  │    │   ├─ SageMaker Pipeline     │ │
-│  │  ├─ Preprocessing       │    │   ├─ Preprocessing          │ │
-│  │  ├─ Training Job        │    │   ├─ Training Job           │ │
-│  │  ├─ Evaluation          │    │   ├─ Evaluation             │ │
-│  │  └─ Inference Endpoint  │    │   ├─ Inference Endpoint     │ │
-│  └─────────────────────────┘    │   └─ API Gateway + Lambda   │ │
-│                                 └─────────────────────────────┘ │
+│  │  ├─ Inference Endpoint  │    │   ├─ Inference Endpoint     │ │
+│  │  └─ API Gateway + Lambda│    │   └─ API Gateway + Lambda   │ │
+│  └─────────────────────────┘    └─────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -140,7 +137,46 @@ python main.py all --upload --bucket my-bucket # Generate and upload to S3
 2. **Upload Data**: `make upload-bucketing-data BUCKET=your-bucket`
 3. **Run Pipeline**: SageMaker pipeline runs preprocessing, training, and evaluation
 4. **Deploy Model**: Approved models are registered and the endpoint is updated
-5. **Make Predictions**: Call the real-time endpoint for user bucketing
+5. **Bucket Users**: POST to `/bucket` endpoint with a user ID
+
+Example:
+
+```typescript
+// On user login/page load
+const response = await fetch('/bucket', {
+  method: 'POST',
+  body: JSON.stringify({ user_id: userId })
+});
+
+/**
+ * Example response:
+ * {
+    "goal": "increase live news at 18:00 for 16-25s",
+    "parsed": {
+      "segment": "16_25",
+      "metric": "live_news_18_consumption",
+      "time_focus": 18
+    },
+    "recommendations": [
+      {
+        "template_id": "live_news_push_16_25",
+        "description": "Push reminder for Live News at 18:00 for 16–25s.",
+        "predicted_uplift": 0.12
+      }
+    ]
+ * }
+*/
+
+const { bucket, experiment_assignment } = await response.json();
+
+// Route user to appropriate experience
+if (bucket === 'high_value') {
+  showPremiumFeatures();
+  trackExperiment(experiment_assignment.type, experiment_assignment.variant);
+} else {
+  showStandardFeatures();
+}
+```
 
 ### ML Recommender Pipeline
 
@@ -150,12 +186,38 @@ python main.py all --upload --bucket my-bucket # Generate and upload to S3
 4. **Deploy Model**: Approved models are registered and the endpoint is updated
 5. **Get Recommendations**: POST to `/recommend` endpoint with a goal
 
-Example API request:
+Example:
 
-```bash
-curl -X POST https://YOUR_API_GATEWAY_URL/recommend \
-  -H "Content-Type: application/json" \
-  -d '{"goal": "increase live news at 18:00 for 16-25s", "top_n": 5}'
+```typescript
+// On user login/page load
+const response = await fetch('/recommend', {
+  method: 'POST',
+  body: JSON.stringify({ goal: 'increase live news at 18:00 for 16-25s' })
+});
+
+/**
+ * Example response:
+ * {
+    "goal": "increase live news at 18:00 for 16-25s",
+    "parsed": {
+      "segment": "16_25",
+      "metric": "live_news_18_consumption",
+      "time_focus": 18
+    },
+    "recommendations": [
+      {
+        "template_id": "live_news_push_16_25",
+        "description": "Push reminder for Live News at 18:00 for 16–25s.",
+        "predicted_uplift": 0.12
+      }
+    ]
+ * }
+*/
+
+const { recommendations } = await response.json();
+
+// Run the experiment
+runExperiment(recommendations[0].template_id);
 ```
 
 ## Local Training

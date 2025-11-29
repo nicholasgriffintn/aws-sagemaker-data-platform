@@ -48,6 +48,7 @@ install:
 	pip install -r glue/requirements.txt
 	pip install -r sagemaker-scripts/bucketing-pipeline/requirements.txt
 	pip install -r sagemaker-scripts/recommender-pipeline/requirements.txt
+	pip install -r lambdas/bucketing/requirements.txt
 	pip install -r lambdas/recommender/requirements.txt
 
 build:
