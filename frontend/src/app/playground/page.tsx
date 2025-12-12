@@ -64,14 +64,30 @@ export default function PlaygroundPage() {
   const [response, setResponse] = useState<ApiResponse | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const configured = isConfigured();
+  const bucketingConfigured = isConfigured('bucketing');
+  const recommenderConfigured = isConfigured('recommender');
+
+  const missingApis: string[] = [];
+  if (!bucketingConfigured) {
+    missingApis.push('User Bucketing');
+  }
+  if (!recommenderConfigured) {
+    missingApis.push('Recommender');
+  }
+  const showDemoWarning = missingApis.length > 0;
+  const missingApiDescription = missingApis.join(' and ');
 
   async function handleSubmit() {
     setLoading(true);
     setResponse(null);
 
+    const apiConfigured =
+      activeTab === 'bucketing'
+        ? bucketingConfigured
+        : recommenderConfigured;
+
     try {
-      if (!configured) {
+      if (!apiConfigured) {
         await new Promise((resolve) => setTimeout(resolve, 800));
 
         if (activeTab === 'bucketing') {
@@ -190,7 +206,7 @@ export default function PlaygroundPage() {
             </div>
           </motion.div>
 
-          {!configured && (
+          {showDemoWarning && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -201,9 +217,10 @@ export default function PlaygroundPage() {
                 <div>
                   <p className="text-amber-200 font-medium">Demo Mode</p>
                   <p className="text-amber-200/70 text-sm">
-                    API endpoints are not configured. The playground will return
-                    simulated responses. Deploy the CDK stack to connect to real
-                    endpoints.
+                    {missingApiDescription} API endpoint
+                    {missingApis.length > 1 ? 's are' : ' is'} not configured.
+                    Requests to those endpoints will return simulated responses.
+                    Deploy the CDK stack to connect to real endpoints.
                   </p>
                 </div>
               </div>
@@ -538,7 +555,7 @@ export default function PlaygroundPage() {
               <div className="terminal-content">
                 {activeTab === 'bucketing' ? (
                   <pre className="!bg-transparent !border-0 !p-0">{`const response = await fetch('${
-                    configured ? getBucketingUrl() : '/api/bucket'
+                    bucketingConfigured ? getBucketingUrl() : '/api/bucket'
                   }', {
   method: 'POST',
   headers: { 
@@ -558,7 +575,9 @@ if (bucket === 'high_value') {
 }`}</pre>
                 ) : (
                   <pre className="!bg-transparent !border-0 !p-0">{`const response = await fetch('${
-                    configured ? getRecommenderUrl() : '/api/recommend'
+                    recommenderConfigured
+                      ? getRecommenderUrl()
+                      : '/api/recommend'
                   }', {
   method: 'POST',
   headers: { 

@@ -159,9 +159,15 @@ export const apiConfig: ApiConfig = {
   region: '${region}',
 };
 
-export function isConfigured(): boolean {
-  return !apiConfig.bucketingApiUrl.startsWith('__') && 
-         !apiConfig.recommenderApiUrl.startsWith('__');
+export function isConfigured(apiType?: 'bucketing' | 'recommender'): boolean {
+  const bucketingReady = !apiConfig.bucketingApiUrl.startsWith('__');
+  const recommenderReady = !apiConfig.recommenderApiUrl.startsWith('__');
+
+  if (!apiType) {
+    return bucketingReady && recommenderReady;
+  }
+
+  return apiType === 'bucketing' ? bucketingReady : recommenderReady;
 }
 
 export function getBucketingUrl(): string {
