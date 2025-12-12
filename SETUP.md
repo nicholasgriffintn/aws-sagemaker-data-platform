@@ -83,7 +83,7 @@ If you are just deploying the demo environment, run:
 
 ```bash
 # Deploy slim demo (storage + IAM + pipelines + frontend)
-pnpm cdk deploy --context env=demo
+pnpm cdk deploy --context env=demo --all --require-approval never
 ```
 
 ### Full environment
