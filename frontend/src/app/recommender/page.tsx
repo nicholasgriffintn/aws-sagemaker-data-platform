@@ -11,7 +11,9 @@ import {
   Sparkles,
   TrendingUp,
   Play,
-  MessageSquare,
+  FlaskConical,
+  Bot,
+  LineChart,
 } from 'lucide-react';
 
 export default function RecommenderPage() {
@@ -337,6 +339,57 @@ runExperiment(topExperiment.template_id);
   ]
 }`}</pre>
               </div>
+            </div>
+          </motion.section>
+
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.28 }}
+            className="mb-16"
+          >
+            <h2 className="text-2xl font-bold text-white mb-6">
+              Inside the Recommender Engine
+            </h2>
+            <p className="text-sm text-zinc-400 mb-6">
+              These building blocks take a natural-language goal, ground it in
+              data, and deliver ranked experiment ideas with uplift estimates.
+            </p>
+
+            <div className="grid sm:grid-cols-3 gap-4">
+              {[
+                {
+                  icon: FlaskConical,
+                  title: 'AWS SageMaker',
+                  description:
+                    'Experiment history lands in S3 and SageMaker trains, evaluates, and versions every recommender model before deploying an endpoint.',
+                },
+                {
+                  icon: Bot,
+                  title: 'XGBoost Model',
+                  description:
+                    'Gradient-boosted trees do a great job on sparse categorical features and learn uplift as a regression problem.',
+                },
+                {
+                  icon: LineChart,
+                  title: 'Monitoring + Drift Watch',
+                  description:
+                    'Metrics Tracker, CloudWatch alarms, and feature logging alert us when predictions change unexpectedly so we can trigger retraining.',
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="p-4 rounded-xl border border-white/5 bg-canvas-light h-full"
+                >
+                  <item.icon className="w-6 h-6 text-ember mb-3" />
+                  <h3 className="text-white font-semibold text-base mb-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+              ))}
             </div>
           </motion.section>
 

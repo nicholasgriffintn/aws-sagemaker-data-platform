@@ -12,6 +12,9 @@ import {
   CheckCircle,
   Zap,
   Play,
+  FlaskConical,
+  Brain,
+  LineChart,
 } from 'lucide-react';
 
 export default function BucketingPage() {
@@ -246,6 +249,57 @@ export default function BucketingPage() {
                   <code className="text-xs text-zinc-500 bg-black/20 px-2 py-1 rounded">
                     {item.env}
                   </code>
+                </div>
+              ))}
+            </div>
+          </motion.section>
+
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.28 }}
+            className="mb-16"
+          >
+            <h2 className="text-2xl font-bold text-white mb-6">
+              What Powers the Bucketing Model?
+            </h2>
+            <p className="text-sm text-zinc-400 mb-6">
+              These are the core services that keep the classifier accurate,
+              monitored, and easy to operate.
+            </p>
+
+            <div className="grid sm:grid-cols-3 gap-4">
+              {[
+                {
+                  icon: FlaskConical,
+                  title: 'AWS SageMaker',
+                  description:
+                    'Managed training jobs, pipelines, and endpoints mean the team focuses on data and code while SageMaker handles scaling and hosting.',
+                },
+                {
+                  icon: Brain,
+                  title: 'scikit-learn Models',
+                  description:
+                    'The pipeline can swap between Logistic Regression (fast linear boundaries) and Random Forest (ensembles of decision trees) depending on the dataset shape.',
+                },
+                {
+                  icon: LineChart,
+                  title: 'Auto Report Cards',
+                  description:
+                    'Platform metrics capture precision, recall, drift, and feature importances so we know when to redeploy or retrain.',
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="p-4 rounded-xl border border-white/5 bg-canvas-light h-full"
+                >
+                  <item.icon className="w-6 h-6 text-accent mb-3" />
+                  <h3 className="text-white font-semibold text-base mb-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-zinc-400 leading-relaxed">
+                    {item.description}
+                  </p>
                 </div>
               ))}
             </div>

@@ -13,6 +13,11 @@ import {
   Zap,
   GitBranch,
   Cloud,
+  FlaskConical,
+  Bot,
+  Brain,
+  ServerCog,
+  BookOpen,
 } from 'lucide-react';
 
 const fadeInUp = {
@@ -331,6 +336,97 @@ export default function Home() {
                 Lake Formation governance.
               </p>
             </motion.div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-32 relative">
+        <div className="max-w-7xl mx-auto px-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              Meet the Background Helpers
+            </h2>
+            <p className="text-zinc-400 max-w-3xl mx-auto">
+              Here is what powers the platform, explained in plain language.
+              Each helper has a focused responsibility and combines with the
+              others to keep experiments humming.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                icon: FlaskConical,
+                title: 'AWS SageMaker Lab',
+                description:
+                  'SageMaker is the managed ML service that trains, evaluates, and hosts our models without us wiring up servers by hand.',
+                detail:
+                  'Pipelines describe the steps, SageMaker provisions containerized runs, tracks versions, and exposes HTTPS endpoints when they are ready.',
+              },
+              {
+                icon: Brain,
+                title: 'scikit-learn Bucketing Brain',
+                description:
+                  'The user bucketing pipeline is a scikit-learn model that spots patterns in engagement, purchase history, and demographics.',
+                detail:
+                  'We can choose Logistic Regression for linear splits or Random Forest for many decision trees voting together, depending on the data.',
+              },
+              {
+                icon: Bot,
+                title: 'XGBoost Idea Picker',
+                description:
+                  'The recommender uses XGBoost, a gradient-boosted tree algorithm well-suited to tabular experiment telemetry.',
+                detail:
+                  'Boosted trees learn sequentially so each iteration corrects the previous errors, producing stable uplift scores even with noisy metrics.',
+              },
+              {
+                icon: Database,
+                title: 'Feature Helpers',
+                description:
+                  'DynamoDB and the SageMaker Feature Store keep user traits and experiment metrics close to the model.',
+                detail:
+                  'DynamoDB handles real-time lookups for live inference while Feature Store maintains ML-optimized histories for training and batch jobs.',
+              },
+              {
+                icon: ServerCog,
+                title: 'API Messengers',
+                description:
+                  'API Gateway and Lambda expose HTTPS entry points, validate requests, and forward them to the right model endpoint.',
+                detail:
+                  'IAM roles, throttling, and signing rules ensure only authorized callers reach the model while keeping latency in check.',
+              },
+              {
+                icon: BookOpen,
+                title: 'Data Storyteller',
+                description:
+                  'The data generator and S3 buckets provide synthetic and historical datasets for repeated training runs.',
+                detail:
+                  'CSV exports land in S3 where SageMaker jobs can replay them for preprocessing, training, and evaluation.',
+              },
+            ].map((helper, i) => (
+              <motion.div
+                key={helper.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                className="card h-full"
+              >
+                <helper.icon className="w-8 h-8 text-accent mb-4" />
+                <h3 className="text-xl font-semibold text-white mb-2">
+                  {helper.title}
+                </h3>
+                <p className="text-zinc-400 text-sm mb-3">
+                  {helper.description}
+                </p>
+                <p className="text-xs text-zinc-500">{helper.detail}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
