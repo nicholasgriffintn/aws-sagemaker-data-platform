@@ -34,7 +34,7 @@ Edit config/environments/dev.json with your AWS account ID:
   "private": false,
   "endpointConfig": {
     "deployEndpoint": false,
-    "useServerless": true
+    "useServerlessEndpoint": true
   }
 }
 ```
@@ -75,7 +75,18 @@ make build
 make diff
 ```
 
-## Step 7: Deploy All Stacks
+## Step 7: Deploy Stacks
+
+### Demo environment
+
+If you are just deploying the demo environment, run:
+
+```bash
+# Deploy slim demo (storage + IAM + pipelines + frontend)
+pnpm cdk deploy --context env=demo
+```
+
+### Full environment
 
 ```bash
 make deploy
@@ -176,7 +187,7 @@ By default, SageMaker endpoints are not deployed to avoid costs during initial s
 {
   "endpointConfig": {
     "deployEndpoint": true,
-    "useServerless": true
+    "useServerlessEndpoint": true
   }
 }
 ```
@@ -187,7 +198,7 @@ By default, SageMaker endpoints are not deployed to avoid costs during initial s
 make deploy
 ```
 
-Setting `useServerless: true` uses SageMaker Serverless Inference which scales to zero when idle. For production workloads with consistent traffic, set `useServerless: false` to use real-time endpoints.
+Setting `useServerlessEndpoint: true` uses SageMaker Serverless Inference which scales to zero when idle. For production workloads with consistent traffic, set `useServerlessEndpoint: false` to use real-time endpoints.
 
 ## Step 12: Test the APIs
 

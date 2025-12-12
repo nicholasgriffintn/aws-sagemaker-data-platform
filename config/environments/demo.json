@@ -1,0 +1,21 @@
+{
+  "_comment": "Lightweight demo deployment that skips data lake, Glue, Studio, and feature store stacks",
+  "componentName": "aws-ml-platform",
+  "awsAccount": "651706750584",
+  "awsRegion": "eu-west-1",
+  "private": false,
+  "endpointConfig": {
+    "deployEndpoint": true,
+    "useServerlessEndpoint": true
+  },
+  "stacks": {
+    "glue": false,
+    "lakeFormation": false,
+    "featureInfra": false,
+    "dataPipelines": false,
+    "sagemakerStudio": false,
+    "userProfiles": false,
+    "experimentPipeline": false,
+    "recommenderPipeline": true
+  }
+}

@@ -26,12 +26,24 @@ interface EndpointConfig {
   serverlessMaxConcurrency?: number;
 }
 
+interface StackToggles {
+  glue?: boolean;
+  lakeFormation?: boolean;
+  featureInfra?: boolean;
+  dataPipelines?: boolean;
+  sagemakerStudio?: boolean;
+  userProfiles?: boolean;
+  experimentPipeline?: boolean;
+  recommenderPipeline?: boolean;
+}
+
 interface EnvConfig {
   componentName: string;
   awsAccount: string;
   awsRegion: string;
   private: boolean;
   endpointConfig?: EndpointConfig;
+  stacks?: StackToggles;
 }
 
 function getEnv(): string {
@@ -58,6 +70,16 @@ function loadEnvConfig(envName: string): EnvConfig {
 const app = new App();
 const envName = app.node.tryGetContext('env') || getEnv();
 const cfg = loadEnvConfig(envName);
+const stackToggles = {
+  glue: cfg.stacks?.glue ?? true,
+  lakeFormation: cfg.stacks?.lakeFormation ?? true,
+  featureInfra: cfg.stacks?.featureInfra ?? true,
+  dataPipelines: cfg.stacks?.dataPipelines ?? true,
+  sagemakerStudio: cfg.stacks?.sagemakerStudio ?? true,
+  userProfiles: cfg.stacks?.userProfiles ?? true,
+  experimentPipeline: cfg.stacks?.experimentPipeline ?? true,
+  recommenderPipeline: cfg.stacks?.recommenderPipeline ?? true,
+};
 
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT || cfg.awsAccount,
@@ -93,39 +115,48 @@ const storage = new StorageStack(
 
 grantPipelineStoragePermissions(storage, iam);
 
-const glue = new GlueStack(app, `${cfg.componentName}-Glue-${envName}`, {
-  env,
-  environmentName: envName,
-  componentName: cfg.componentName,
-  rawDataBucket: storage.rawDataBucket,
-  processedDataBucket: storage.processedDataBucket,
-  codeBucket: storage.codeBucket,
-  kmsKey: storage.kmsKey,
-});
-glue.addDependency(storage);
+const glue = stackToggles.glue
+  ? new GlueStack(app, `${cfg.componentName}-Glue-${envName}`, {
+      env,
+      environmentName: envName,
+      componentName: cfg.componentName,
+      rawDataBucket: storage.rawDataBucket,
+      processedDataBucket: storage.processedDataBucket,
+      codeBucket: storage.codeBucket,
+      kmsKey: storage.kmsKey,
+    })
+  : undefined;
+if (glue) {
+  glue.addDependency(storage);
+}
 
-const lakeFormation = new LakeFormationStack(
-  app,
-  `${cfg.componentName}-LakeFormation-${envName}`,
-  {
-    env,
-    environmentName: envName,
-    componentName: cfg.componentName,
-    rawDataBucket: storage.rawDataBucket,
-    processedDataBucket: storage.processedDataBucket,
-    dataLakeAdmins: [iam.pipelineRole],
-    pipelineRole: iam.pipelineRole,
-    sagemakerExecutionRole: iam.sagemakerExecutionRole,
-    sagemakerJobRole: iam.sagemakerJobRole,
-    rawDatabase: glue.rawDatabase,
-    rawDatabaseName: glue.rawDatabaseName,
-    processedDatabase: glue.processedDatabase,
-    processedDatabaseName: glue.processedDatabaseName,
-  }
-);
-lakeFormation.addDependency(storage);
-lakeFormation.addDependency(iam);
-lakeFormation.addDependency(glue);
+const lakeFormation =
+  stackToggles.lakeFormation && glue
+    ? new LakeFormationStack(
+        app,
+        `${cfg.componentName}-LakeFormation-${envName}`,
+        {
+          env,
+          environmentName: envName,
+          componentName: cfg.componentName,
+          rawDataBucket: storage.rawDataBucket,
+          processedDataBucket: storage.processedDataBucket,
+          dataLakeAdmins: [iam.pipelineRole],
+          pipelineRole: iam.pipelineRole,
+          sagemakerExecutionRole: iam.sagemakerExecutionRole,
+          sagemakerJobRole: iam.sagemakerJobRole,
+          rawDatabase: glue!.rawDatabase,
+          rawDatabaseName: glue!.rawDatabaseName,
+          processedDatabase: glue!.processedDatabase,
+          processedDatabaseName: glue!.processedDatabaseName,
+        }
+      )
+    : undefined;
+if (lakeFormation && glue) {
+  lakeFormation.addDependency(storage);
+  lakeFormation.addDependency(iam);
+  lakeFormation.addDependency(glue);
+}
 
 const codeDeployment = new CodeDeploymentStack(
   app,
@@ -140,112 +171,153 @@ const codeDeployment = new CodeDeploymentStack(
 );
 codeDeployment.addDependency(storage);
 
-const sagemakerStudio = new SagemakerStudioStack(
-  app,
-  `${cfg.componentName}-SagemakerStudio-${envName}`,
-  {
+const sagemakerStudio = stackToggles.sagemakerStudio
+  ? new SagemakerStudioStack(
+      app,
+      `${cfg.componentName}-SagemakerStudio-${envName}`,
+      {
+        env,
+        environmentName: envName,
+        componentName: cfg.componentName,
+        vpc: network.vpc,
+        securityGroup: network.sagemakerStudioSg,
+        dataBucket: storage.rawDataBucket,
+        dataKey: storage.kmsKey,
+        executionRole: iam.sagemakerExecutionRole,
+        private: cfg.private,
+      }
+    )
+  : undefined;
+if (sagemakerStudio) {
+  sagemakerStudio.addDependency(network);
+  sagemakerStudio.addDependency(iam);
+  sagemakerStudio.addDependency(storage);
+}
+
+if (stackToggles.userProfiles && sagemakerStudio) {
+  new UserProfileStack(app, `${cfg.componentName}-UserProfile-${envName}`, {
     env,
     environmentName: envName,
     componentName: cfg.componentName,
-    vpc: network.vpc,
+    studioDomain: sagemakerStudio.domain,
     securityGroup: network.sagemakerStudioSg,
-    dataBucket: storage.rawDataBucket,
-    dataKey: storage.kmsKey,
-    executionRole: iam.sagemakerExecutionRole,
-    private: cfg.private,
-  }
-);
-sagemakerStudio.addDependency(network);
-sagemakerStudio.addDependency(iam);
-sagemakerStudio.addDependency(storage);
+  });
+}
 
-new UserProfileStack(app, `${cfg.componentName}-UserProfile-${envName}`, {
-  env,
-  environmentName: envName,
-  componentName: cfg.componentName,
-  studioDomain: sagemakerStudio.domain,
-  securityGroup: network.sagemakerStudioSg,
-});
+const featureInfra = stackToggles.featureInfra
+  ? new FeatureInfrastructureStack(
+      app,
+      `${cfg.componentName}-FeatureInfra-${envName}`,
+      {
+        env,
+        environmentName: envName,
+        componentName: cfg.componentName,
+        kmsKey: storage.kmsKey,
+        offlineStoreBucket: storage.processedDataBucket,
+        sagemakerExecutionRole: iam.sagemakerExecutionRole,
+      }
+    )
+  : undefined;
+if (featureInfra) {
+  featureInfra.addDependency(storage);
+  featureInfra.addDependency(iam);
+}
 
-const featureInfra = new FeatureInfrastructureStack(
-  app,
-  `${cfg.componentName}-FeatureInfra-${envName}`,
-  {
-    env,
-    environmentName: envName,
-    componentName: cfg.componentName,
-    kmsKey: storage.kmsKey,
-    offlineStoreBucket: storage.processedDataBucket,
-    sagemakerExecutionRole: iam.sagemakerExecutionRole,
-  }
-);
-featureInfra.addDependency(storage);
-featureInfra.addDependency(iam);
+const demoUserFeaturesTableName = `${cfg.componentName}-${envName}-demo-user-features`;
+const demoFeatureGroupName = `${cfg.componentName}-${envName}-demo-feature-group`;
 
-const experimentPipeline = new ExperimentPipelineStack(
-  app,
-  `${cfg.componentName}-ExperimentPipeline-${envName}`,
-  {
-    env,
-    environmentName: envName,
-    componentName: cfg.componentName,
-    vpc: network.vpc,
-    securityGroup: network.sagemakerStudioSg,
-    rawDataBucket: storage.rawDataBucket,
-    processedDataBucket: storage.processedDataBucket,
-    codeBucket: storage.codeBucket,
-    dataKey: storage.kmsKey,
-    pipelineRole: iam.pipelineRole,
-    lambdaExecutionRole: iam.lambdaExecutionRole,
-    userFeaturesTableName: featureInfra.userFeaturesTable.tableName,
-    featureGroupName: featureInfra.featureGroupName,
-    endpointConfig: cfg.endpointConfig,
-  }
-);
-experimentPipeline.addDependency(lakeFormation);
-experimentPipeline.addDependency(codeDeployment);
-experimentPipeline.addDependency(featureInfra);
+const experimentPipeline = stackToggles.experimentPipeline
+  ? new ExperimentPipelineStack(
+      app,
+      `${cfg.componentName}-ExperimentPipeline-${envName}`,
+      {
+        env,
+        environmentName: envName,
+        componentName: cfg.componentName,
+        vpc: network.vpc,
+        securityGroup: network.sagemakerStudioSg,
+        rawDataBucket: storage.rawDataBucket,
+        processedDataBucket: storage.processedDataBucket,
+        codeBucket: storage.codeBucket,
+        dataKey: storage.kmsKey,
+        pipelineRole: iam.pipelineRole,
+        lambdaExecutionRole: iam.lambdaExecutionRole,
+        userFeaturesTableName:
+          featureInfra?.userFeaturesTable.tableName ??
+          demoUserFeaturesTableName,
+        featureGroupName:
+          featureInfra?.featureGroupName ?? demoFeatureGroupName,
+        endpointConfig: cfg.endpointConfig,
+      }
+    )
+  : undefined;
+if (lakeFormation && experimentPipeline) {
+  experimentPipeline.addDependency(lakeFormation);
+}
+if (experimentPipeline) {
+  experimentPipeline.addDependency(codeDeployment);
+}
+if (featureInfra && experimentPipeline) {
+  experimentPipeline.addDependency(featureInfra);
+}
 
-const recommenderPipeline = new RecommenderPipelineStack(
-  app,
-  `${cfg.componentName}-RecommenderPipeline-${envName}`,
-  {
-    env,
-    environmentName: envName,
-    componentName: cfg.componentName,
-    vpc: network.vpc,
-    securityGroup: network.sagemakerStudioSg,
-    rawDataBucket: storage.rawDataBucket,
-    processedDataBucket: storage.processedDataBucket,
-    codeBucket: storage.codeBucket,
-    dataKey: storage.kmsKey,
-    pipelineRole: iam.pipelineRole,
-    lambdaExecutionRole: iam.lambdaExecutionRole,
-    endpointConfig: cfg.endpointConfig,
-  }
-);
-recommenderPipeline.addDependency(lakeFormation);
-recommenderPipeline.addDependency(codeDeployment);
-recommenderPipeline.addDependency(featureInfra);
+const recommenderPipeline = stackToggles.recommenderPipeline
+  ? new RecommenderPipelineStack(
+      app,
+      `${cfg.componentName}-RecommenderPipeline-${envName}`,
+      {
+        env,
+        environmentName: envName,
+        componentName: cfg.componentName,
+        vpc: network.vpc,
+        securityGroup: network.sagemakerStudioSg,
+        rawDataBucket: storage.rawDataBucket,
+        processedDataBucket: storage.processedDataBucket,
+        codeBucket: storage.codeBucket,
+        dataKey: storage.kmsKey,
+        pipelineRole: iam.pipelineRole,
+        lambdaExecutionRole: iam.lambdaExecutionRole,
+        endpointConfig: cfg.endpointConfig,
+      }
+    )
+  : undefined;
+if (lakeFormation && recommenderPipeline) {
+  recommenderPipeline.addDependency(lakeFormation);
+}
+if (recommenderPipeline) {
+  recommenderPipeline.addDependency(codeDeployment);
+}
+if (featureInfra && recommenderPipeline) {
+  recommenderPipeline.addDependency(featureInfra);
+}
 
-const dataPipeline = new DataPipelineStack(
-  app,
-  `${cfg.componentName}-DataPipeline-${envName}`,
-  {
-    env,
-    environmentName: envName,
-    componentName: cfg.componentName,
-    rawDataBucket: storage.rawDataBucket,
-    processedDataBucket: storage.processedDataBucket,
-    bucketingEtlJobName: `${cfg.componentName}-${envName}-bucketing-etl`,
-    experimentEtlJobName: `${cfg.componentName}-${envName}-experiment-etl`,
-    bucketingPipelineName: `${cfg.componentName}-${envName}-bucketing-pipeline`,
-    recommenderPipelineName: `${cfg.componentName}-${envName}-recommender-pipeline`,
+const dataPipeline =
+  stackToggles.dataPipelines && glue
+    ? new DataPipelineStack(
+        app,
+        `${cfg.componentName}-DataPipeline-${envName}`,
+        {
+          env,
+          environmentName: envName,
+          componentName: cfg.componentName,
+          rawDataBucket: storage.rawDataBucket,
+          processedDataBucket: storage.processedDataBucket,
+          bucketingEtlJobName: `${cfg.componentName}-${envName}-bucketing-etl`,
+          experimentEtlJobName: `${cfg.componentName}-${envName}-experiment-etl`,
+          bucketingPipelineName: `${cfg.componentName}-${envName}-bucketing-pipeline`,
+          recommenderPipelineName: `${cfg.componentName}-${envName}-recommender-pipeline`,
+        }
+      )
+    : undefined;
+if (dataPipeline && glue) {
+  dataPipeline.addDependency(glue);
+  if (experimentPipeline) {
+    dataPipeline.addDependency(experimentPipeline);
   }
-);
-dataPipeline.addDependency(glue);
-dataPipeline.addDependency(experimentPipeline);
-dataPipeline.addDependency(recommenderPipeline);
+  if (recommenderPipeline) {
+    dataPipeline.addDependency(recommenderPipeline);
+  }
+}
 
 const frontend = new FrontendStack(
   app,
@@ -254,9 +326,13 @@ const frontend = new FrontendStack(
     env,
     environmentName: envName,
     componentName: cfg.componentName,
-    bucketingApiUrl: experimentPipeline.api.url,
-    recommenderApiUrl: recommenderPipeline.api.url,
+    bucketingApiUrl: experimentPipeline?.api.url || '',
+    recommenderApiUrl: recommenderPipeline?.api.url || '',
   }
 );
-frontend.addDependency(experimentPipeline);
-frontend.addDependency(recommenderPipeline);
+if (experimentPipeline) {
+  frontend.addDependency(experimentPipeline);
+}
+if (recommenderPipeline) {
+  frontend.addDependency(recommenderPipeline);
+}
