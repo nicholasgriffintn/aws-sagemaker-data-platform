@@ -1,9 +1,9 @@
 {
   "_comment": "Lightweight demo deployment that skips data lake, Glue, Studio, and feature store stacks",
   "componentName": "aws-ml-platform",
-  "awsAccount": "651706750584",
+  "awsAccount": "731330499349",
   "awsRegion": "eu-west-1",
-  "private": false,
+  "private": true,
   "endpointConfig": {
     "deployEndpoint": true,
     "useServerlessEndpoint": true

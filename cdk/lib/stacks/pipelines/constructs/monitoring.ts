@@ -23,8 +23,8 @@ export class EndpointMonitoring extends Construct {
   public readonly highLatencyAlarm: Alarm;
   public readonly highErrorRateAlarm: Alarm;
   public readonly lowInvocationAlarm: Alarm;
-  public readonly scalableTarget: ScalableTarget;
-  public readonly scalingPolicy: TargetTrackingScalingPolicy;
+  public readonly scalableTarget?: ScalableTarget;
+  public readonly scalingPolicy?: TargetTrackingScalingPolicy;
 
   constructor(scope: Construct, id: string, props: EndpointMonitoringProps) {
     super(scope, id);
@@ -88,25 +88,27 @@ export class EndpointMonitoring extends Construct {
     });
     this.lowInvocationAlarm.addAlarmAction(new SnsAction(this.alertsTopic));
 
-    this.scalableTarget = new ScalableTarget(this, 'EndpointScalableTarget', {
-      serviceNamespace: ServiceNamespace.SAGEMAKER,
-      resourceId: `endpoint/${props.endpointName}/variant/${variantName}`,
-      scalableDimension: 'sagemaker:variant:DesiredInstanceCount',
-      minCapacity: props.minCapacity ?? 1,
-      maxCapacity: props.maxCapacity ?? 5,
-    });
+    if (!props.useServerless) {
+      this.scalableTarget = new ScalableTarget(this, 'EndpointScalableTarget', {
+        serviceNamespace: ServiceNamespace.SAGEMAKER,
+        resourceId: `endpoint/${props.endpointName}/variant/${variantName}`,
+        scalableDimension: 'sagemaker:variant:DesiredInstanceCount',
+        minCapacity: props.minCapacity ?? 1,
+        maxCapacity: props.maxCapacity ?? 5,
+      });
 
-    this.scalingPolicy = new TargetTrackingScalingPolicy(
-      this,
-      'EndpointScalingPolicy',
-      {
-        scalingTarget: this.scalableTarget,
-        targetValue: props.invocationTargetValue ?? 100,
-        predefinedMetric:
-          PredefinedMetric.SAGEMAKER_VARIANT_INVOCATIONS_PER_INSTANCE,
-        scaleOutCooldown: Duration.minutes(5),
-        scaleInCooldown: Duration.minutes(10),
-      }
-    );
+      this.scalingPolicy = new TargetTrackingScalingPolicy(
+        this,
+        'EndpointScalingPolicy',
+        {
+          scalingTarget: this.scalableTarget,
+          targetValue: props.invocationTargetValue ?? 100,
+          predefinedMetric:
+            PredefinedMetric.SAGEMAKER_VARIANT_INVOCATIONS_PER_INSTANCE,
+          scaleOutCooldown: Duration.minutes(5),
+          scaleInCooldown: Duration.minutes(10),
+        }
+      );
+    }
   }
 }

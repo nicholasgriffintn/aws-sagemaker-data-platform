@@ -119,17 +119,24 @@ export class Endpoint extends Construct {
       endpointConfigName: `${props.componentName}-${props.environmentName}-${props.pipelineName}-endpoint-config`,
       productionVariants,
       kmsKeyId: props.kmsKeyId,
-      dataCaptureConfig: {
-        enableCapture: true,
-        initialSamplingPercentage: 100,
-        destinationS3Uri: `s3://${props.processedDataBucket.bucketName}/${dataCapturePrefix}`,
-        kmsKeyId: props.kmsKeyId,
-        captureOptions: [{ captureMode: 'Input' }, { captureMode: 'Output' }],
-        captureContentTypeHeader: {
-          jsonContentTypes: ['application/json'],
-          csvContentTypes: ['text/csv'],
-        },
-      },
+      ...(props.useServerless
+        ? {}
+        : {
+            dataCaptureConfig: {
+              enableCapture: true,
+              initialSamplingPercentage: 100,
+              destinationS3Uri: `s3://${props.processedDataBucket.bucketName}/${dataCapturePrefix}`,
+              kmsKeyId: props.kmsKeyId,
+              captureOptions: [
+                { captureMode: 'Input' },
+                { captureMode: 'Output' },
+              ],
+              captureContentTypeHeader: {
+                jsonContentTypes: ['application/json'],
+                csvContentTypes: ['text/csv'],
+              },
+            },
+          }),
     });
 
     endpointConfig.addDependency(model);
@@ -150,6 +157,7 @@ export class Endpoint extends Construct {
         `${props.componentName}-${props.environmentName}-${props.pipelineName}-endpoint`,
       ...(props.monitoring ?? {}),
       pipelineName: props.pipelineName,
+      useServerless: props.useServerless,
     });
 
     this.resources = {

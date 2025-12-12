@@ -11,6 +11,7 @@ export interface EndpointMonitoringProps {
   endpointName: string;
   pipelineName: string;
   displayName?: string;
+  useServerless?: boolean;
   invocationTargetValue?: number;
   minCapacity?: number;
   maxCapacity?: number;
@@ -21,6 +22,6 @@ export interface EndpointMonitoringResources {
   highLatencyAlarm: Alarm;
   highErrorRateAlarm: Alarm;
   lowInvocationAlarm: Alarm;
-  scalableTarget: ScalableTarget;
-  scalingPolicy: TargetTrackingScalingPolicy;
+  scalableTarget?: ScalableTarget;
+  scalingPolicy?: TargetTrackingScalingPolicy;
 }
