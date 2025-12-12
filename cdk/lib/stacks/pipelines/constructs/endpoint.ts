@@ -81,10 +81,14 @@ export class Endpoint extends Construct {
           SAGEMAKER_SUBMIT_DIRECTORY: submitDirectory,
         },
       },
-      vpcConfig: {
-        securityGroupIds: [props.securityGroup.securityGroupId],
-        subnets: props.vpc.privateSubnets.map((subnet) => subnet.subnetId),
-      },
+      ...(props.useServerless
+        ? {}
+        : {
+            vpcConfig: {
+              securityGroupIds: [props.securityGroup.securityGroupId],
+              subnets: props.vpc.privateSubnets.map((subnet) => subnet.subnetId),
+            },
+          }),
     });
 
     const dataCapturePrefix =

@@ -109,6 +109,7 @@ export abstract class BasePipelineStack extends Stack {
     this.pipeline = sagemakerPipeline.pipeline;
 
     const deployEndpoint = props.endpointConfig?.deployEndpoint ?? false;
+    const useServerlessEndpoint = props.endpointConfig?.useServerlessEndpoint ?? false;
 
     const endpointConstruct = deployEndpoint
       ? new Endpoint(this, `${config.pipelineName}Endpoint`, {
@@ -122,17 +123,17 @@ export abstract class BasePipelineStack extends Stack {
           securityGroup: props.securityGroup,
           sagemakerImageUri: this.sagemakerImageUri,
           modelInterfaceScript: `${config.scriptDirectory}/inference.py`,
-          kmsKeyId: props.dataKey.keyId,
-          primaryInstanceType: this.primaryInstanceType,
-          useServerless: props.endpointConfig?.useServerlessEndpoint,
-          serverlessMemorySizeMb: props.endpointConfig?.serverlessMemorySizeMb,
-          serverlessMaxConcurrency: props.endpointConfig?.serverlessMaxConcurrency,
-          monitoring: {
-            pipelineName: config.pipelineName,
-            invocationTargetValue: 100,
-          },
-        })
-      : undefined;
+	          kmsKeyId: props.dataKey.keyId,
+	          primaryInstanceType: this.primaryInstanceType,
+          useServerless: useServerlessEndpoint,
+	          serverlessMemorySizeMb: props.endpointConfig?.serverlessMemorySizeMb,
+	          serverlessMaxConcurrency: props.endpointConfig?.serverlessMaxConcurrency,
+	          monitoring: {
+	            pipelineName: config.pipelineName,
+	            invocationTargetValue: 100,
+	          },
+	        })
+	      : undefined;
 
     this.endpoint = endpointConstruct?.resources.endpoint;
 
@@ -218,7 +219,7 @@ export abstract class BasePipelineStack extends Stack {
       );
     }
 
-    if (deployEndpoint && (props.enableModelAutoDeploy ?? true)) {
+    if (deployEndpoint && !useServerlessEndpoint && (props.enableModelAutoDeploy ?? true)) {
       new ModelAutoDeploy(this, `${config.pipelineName}ModelAutoDeploy`, {
         componentName: props.componentName,
         environmentName: props.environmentName,

@@ -3,9 +3,9 @@
   "componentName": "aws-ml-platform",
   "awsAccount": "731330499349",
   "awsRegion": "eu-west-1",
-  "private": true,
+  "private": false,
   "endpointConfig": {
-    "deployEndpoint": true,
+    "deployEndpoint": false,
     "useServerlessEndpoint": true
   },
   "stacks": {
