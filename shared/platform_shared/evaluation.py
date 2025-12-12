@@ -1,24 +1,12 @@
 import json
 import logging
 import os
+import tarfile
 from typing import Any, Dict, Literal, Optional, Tuple
 
 import joblib
 
 from .metrics import MetricsTracker
-
-# TODO: Work out this error:
-""" 2025-11-29T23:05:31.441Z
-	
-2025-11-29 23:05:30,027 - __main__ - INFO - Starting model evaluation...
-	
-2025-11-29T23:05:31.441Z
-	
-Traceback (most recent call last): File "/opt/ml/processing/code/evaluate.py", line 79, in <module> main() File "/opt/ml/processing/code/evaluate.py", line 29, in main model = evaluator.load_model(args.model_path, extension='.pkl') File "/opt/ml/processing/code/platform_shared/evaluation.py", line 36, in load_model raise FileNotFoundError(f"No model file found in {model_path}")
-	
-2025-11-29T23:05:31.441Z
-	
-FileNotFoundError: No model file found in /opt/ml/processing/model """
 
 
 class ModelEvaluator:
@@ -37,17 +25,32 @@ class ModelEvaluator:
 
     def load_model(self, model_path: str, extension: str = '.pkl') -> Any:
         model_file = os.path.join(model_path, f'model{extension}')
-        
+
+        if not os.path.exists(model_file):
+            archives = [
+                f for f in os.listdir(model_path)
+                if f.endswith(('.tar.gz', '.tar'))
+            ]
+            if archives:
+                archive_file = os.path.join(model_path, archives[0])
+                self.logger.info(f"Extracting model archive {archive_file}")
+                with tarfile.open(archive_file, 'r:*') as tar:
+                    tar.extractall(model_path)
+                model_file = os.path.join(model_path, f'model{extension}')
+
         if not os.path.exists(model_file):
             model_files = [
-                f for f in os.listdir(model_path) 
+                f for f in os.listdir(model_path)
                 if f.endswith(extension) and 'model' in f
             ]
             if model_files:
                 model_file = os.path.join(model_path, model_files[0])
             else:
-                raise FileNotFoundError(f"No model file found in {model_path}")
-        
+                available = ', '.join(os.listdir(model_path))
+                raise FileNotFoundError(
+                    f"No model file found in {model_path}. Available entries: {available}"
+                )
+
         if extension == '.bst':
             import xgboost as xgb
             model = xgb.Booster()
