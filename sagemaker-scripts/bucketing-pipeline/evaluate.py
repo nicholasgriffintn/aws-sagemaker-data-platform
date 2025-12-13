@@ -35,9 +35,19 @@ def main():
     logger.info(f"Test data shape: {X_test.shape}")
     logger.info(f"Test target distribution: {y_test.value_counts().to_dict()}")
 
+    # Generate predictions on held-out test set
+    # This provides an unbiased estimate of model performance on new data
     y_pred = model.predict(X_test)
+    
+    # Probability estimates needed for metrics like AUC-ROC and threshold tuning
     y_pred_proba = model.predict_proba(X_test)[:, 1]
 
+    # Compute classification metrics: accuracy, precision, recall, F1, AUC-ROC
+    # These measure different aspects of model performance:
+    # - Precision: Of predicted high-value users, how many are actually high-value?
+    # - Recall: Of actual high-value users, how many did we identify?
+    # - F1: Harmonic mean of precision and recall (balanced metric)
+    # - AUC-ROC: Ability to distinguish between classes (higher = better)
     metrics = evaluator.compute_metrics(y_test, y_pred, y_pred_proba)
 
     cm = confusion_matrix(y_test, y_pred)

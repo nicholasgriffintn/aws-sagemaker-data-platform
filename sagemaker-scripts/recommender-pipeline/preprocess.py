@@ -38,15 +38,32 @@ def load_parquet_files(directory):
 
 
 def numeric_cast(df):
-    """Convert boolean and categorical columns to numeric."""
+    """
+    Convert boolean and categorical columns to numeric.
+    
+    XGBoost requires numeric input. This function:
+    - Drops timestamp columns (not useful as-is, would need feature engineering)
+    - Converts booleans to 0/1 integers
+    - Converts categorical strings to numeric codes (similar to LabelEncoder)
+    
+    Note: For categorical features with many categories, consider:
+    - One-hot encoding for low-cardinality categories (<10 unique values)
+    - Target encoding for high-cardinality categories
+    - Keeping as numeric codes (current approach) works but loses category relationships
+    """
     df = df.copy()
     drop_cols = [c for c in df.columns if c in ['processed_at', 'created_at', 'updated_at', 'timestamp']]
     if drop_cols:
         df = df.drop(columns=drop_cols)
+
     for col in df.columns:
         if df[col].dtype == "bool":
+            # Convert True/False to 1/0
             df[col] = df[col].astype("int32")
         elif df[col].dtype == "object":
+            # Convert categorical strings to numeric codes
+            # Each unique string gets a unique integer (0, 1, 2, ...)
+            # XGBoost can handle this, but be aware it treats codes as ordinal
             df[col] = df[col].astype("category").cat.codes
     return df
 
@@ -84,6 +101,13 @@ def main():
     logger.info(f"Target stats: mean={y.mean():.4f}, std={y.std():.4f}")
 
     logger.info("Splitting into train/validation/test sets...")
+    # Three-way split: train (60%), validation (20%), test (20%)
+    # - Training: Used to fit the model
+    # - Validation: Used for early stopping and hyperparameter tuning (not used here but available)
+    # - Test: Held out for final evaluation only (unbiased performance estimate)
+    # 
+    # Note: For time-series data, use time-based splits instead of random splits
+    # to avoid data leakage from future to past
     X_temp, X_test, y_temp, y_test = train_test_split(
         X, y, test_size=args.test_size, random_state=args.random_state
     )

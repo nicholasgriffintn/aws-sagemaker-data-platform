@@ -34,8 +34,15 @@ def main():
     logger.info(f"Test data shape: {X_test.shape}")
 
     dtest = xgb.DMatrix(X_test)
+    
+    # Predict uplift percentages - continuous regression values
+    # Higher values indicate experiments expected to have greater positive impact
     y_pred = model.predict(dtest)
 
+    # Compute regression metrics: RMSE, MAE, R²
+    # - RMSE: Root Mean Squared Error (penalizes large errors more)
+    # - MAE: Mean Absolute Error (average prediction error)
+    # - R²: Coefficient of determination (proportion of variance explained, 1.0 = perfect)
     metrics = evaluator.compute_metrics(y_test, y_pred)
 
     mean_actual_uplift = y_test.mean()

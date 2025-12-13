@@ -39,6 +39,11 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         Initializes the feature engineering transformer.
         """
         self.label_encoders = {}
+        # StandardScaler: Normalizes features to have mean=0 and std=1
+        # Formula: (x - mean) / std
+        # This is important for algorithms like LogisticRegression that are sensitive to feature scale
+        # RandomForest is scale-invariant, but scaling can still help with feature importance interpretation
+        # Learn more: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.StandardScaler.html
         self.scaler = StandardScaler()
         self.feature_columns = None
         self.age_bins = AGE_BINS
@@ -59,6 +64,13 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         
         df = self._create_engineered_features(df)
         
+        # LabelEncoder: Converts categorical strings to integers (0, 1, 2, ...)
+        # Each unique category gets a unique integer label
+        # Note: This assumes no ordinal relationship (e.g., 'US'=0, 'UK'=1 doesn't mean US < UK)
+        # For tree-based models (RandomForest), this is fine as they can handle arbitrary splits
+        # For linear models (LogisticRegression), consider OneHotEncoder for better interpretability
+        # Learn more: https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.LabelEncoder.html
+        # Alternative: OneHotEncoder for linear models - https://scikit-learn.org/stable/modules/generated/sklearn.preprocessing.OneHotEncoder.html
         categorical_features = ['gender', 'location', 'age_group', 'spending_tier']
         for feature in categorical_features:
             if feature in df.columns:
@@ -103,6 +115,10 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
     def _create_engineered_features(self, df):
         """
         Creates engineered features for the input data.
+        
+        Feature engineering creates new features from existing ones to help the model
+        learn better patterns. These domain-specific features often improve model performance
+        more than using raw features alone.
 
         Args:
             df: The input data.
@@ -110,20 +126,32 @@ class FeatureEngineeringTransformer(BaseEstimator, TransformerMixin):
         Returns:
             A DataFrame containing the engineered features.
         """
+        # spend_per_purchase: Average amount spent per purchase
+        # Captures customer value per transaction, useful for identifying high-value users
+        # Handles division by zero for users with no purchases
         df['spend_per_purchase'] = np.where(
             df['purchase_history'] > 0, 
             df['total_spent'] / df['purchase_history'], 
             0
         )
         
+        # session_efficiency: Average page views per session
+        # Measures engagement intensity - high values indicate engaged users
+        # np.maximum prevents division by zero
         df['session_efficiency'] = df['page_views'] / np.maximum(df['session_count'], 1)
         
+        # Age bucketing: Converts continuous age into categorical groups
+        # Helps models learn non-linear age patterns (e.g., different behaviors by age group)
+        # Tree-based models can learn this from raw age, but bucketing can be more interpretable
         df['age_group'] = pd.cut(
             df['age'], 
             bins=self.age_bins, 
             labels=AGE_LABELS
         )
         
+        # Spending tier bucketing: Groups users by spending level
+        # Creates interpretable segments (none, low, medium, high)
+        # Can help with business rule integration and explainability
         df['spending_tier'] = pd.cut(
             df['total_spent'], 
             bins=self.spending_bins,
