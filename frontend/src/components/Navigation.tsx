@@ -24,11 +24,11 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { name: 'Overview', href: '/', icon: LayoutDashboard },
+  { name: 'Data Pipeline', href: '/data/', icon: Database },
   { name: 'User Bucketing', href: '/bucketing/', icon: Users },
   { name: 'Recommender', href: '/recommender/', icon: Lightbulb },
   { name: 'API Reference', href: '/api/', icon: Code },
   { name: 'Playground', href: '/playground/', icon: Play },
-  { name: 'Data Pipeline', href: '/data/', icon: Database },
 ];
 
 export function Navigation() {

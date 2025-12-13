@@ -20,32 +20,6 @@ View the [architecture diagram](docs/architecture/ml-recommender-pipeline.md).
 
 See [SETUP.md](SETUP.md) for a full end-to-end deployment guide.
 
-## Data Generation
-
-Both pipelines use the unified `data-generator` tool:
-
-```bash
-# Generate all data locally
-make generate-data
-
-# Generate specific data types
-make generate-experiment   # Experiment metadata for recommender
-make generate-bucketing    # User data for bucketing
-
-# Generate and upload to S3
-make upload-data BUCKET=your-bucket-name
-```
-
-Or use the CLI directly:
-
-```bash
-cd data-generator
-python main.py all                              # Generate both datasets
-python main.py experiment --records 100000     # Generate 100k experiments
-python main.py bucketing --records 50000       # Generate 50k users
-python main.py all --upload --bucket my-bucket # Generate and upload to S3
-```
-
 ## Usage
 
 ### User Bucketing Pipeline
@@ -141,18 +115,6 @@ const { recommendations } = await response.json();
 runExperiment(recommendations[0].template_id);
 ```
 
-## Local Training
-
-Train models locally for development:
-
-```bash
-# Train recommender model
-make train-recommender
-
-# Train bucketing model
-make train-bucketing
-```
-
 ## Configuration Options
 
 ### Feature Sources (User Bucketing)
@@ -204,25 +166,6 @@ Storage stack includes lifecycle policies for cost optimization:
 | `*-pipeline/data-capture/` | Delete after 30 days |
 | `*-pipeline/training-outputs/` | Intelligent Tiering at 30 days, delete at 180 days |
 | Logs | Glacier at 30 days, delete at 120 days |
-
-### Frontend Configuration
-
-After deployment, inject API configuration into the frontend:
-
-```bash
-cd frontend
-node scripts/inject-config.js dev
-```
-
-This fetches API URLs and API keys from CloudFormation outputs. Or set manually:
-
-```bash
-BUCKETING_API_URL=https://... \
-BUCKETING_API_KEY=... \
-RECOMMENDER_API_URL=https://... \
-RECOMMENDER_API_KEY=... \
-node scripts/inject-config.js
-```
 
 ## Adding New ML Pipelines
 

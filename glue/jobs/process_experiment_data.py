@@ -31,9 +31,23 @@ spark = glueContext.spark_session
 job = Job(glueContext)
 job.init(args['JOB_NAME'], args)
 
-RAW_METADATA_PATH = f"s3://{args['raw_bucket']}/raw/experiments/metadata/"
-RAW_RESULTS_PATH = f"s3://{args['raw_bucket']}/raw/experiments/results/"
-OUTPUT_PATH = f"s3://{args['processed_bucket']}/recommender-pipeline/data/"
+def build_path(base: str, suffix: str) -> str:
+    """Normalize a base bucket/path that may be local or S3."""
+    normalized = base.rstrip('/')
+    if normalized.startswith('s3://') or normalized.startswith('file://'):
+        pass
+    elif normalized.startswith('/'):
+        normalized = f"file://{normalized}"
+    else:
+        normalized = f"s3://{normalized}"
+
+    suffix = suffix.lstrip('/')
+    return f"{normalized}/{suffix}"
+
+
+RAW_METADATA_PATH = build_path(args['raw_bucket'], 'raw/experiments/metadata/')
+RAW_RESULTS_PATH = build_path(args['raw_bucket'], 'raw/experiments/results/')
+OUTPUT_PATH = build_path(args['processed_bucket'], 'recommender-pipeline/data/')
 
 print(f"Reading metadata from: {RAW_METADATA_PATH}")
 print(f"Reading results from: {RAW_RESULTS_PATH}")
@@ -129,4 +143,3 @@ processed_df.write \
 print("ETL job completed successfully")
 
 job.commit()
-

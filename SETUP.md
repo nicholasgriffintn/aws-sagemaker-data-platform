@@ -41,7 +41,7 @@ Edit config/environments/dev.json with your AWS account ID:
 
 Replace YOUR_AWS_ACCOUNT_ID with the account ID from aws sts get-caller-identity.
 
-Note: `deployEndpoint` is `false` by default. Enable it after training your first model (see Step 10).
+Note: `deployEndpoint` is `false` by default. Enable it after training your first model (see Step 11).
 
 ## Step 3: Install All Dependencies
 
@@ -123,7 +123,30 @@ The platform uses a complete data pipeline workflow:
 2. **Glue ETL** → Processes raw data into training-ready format
 3. **SageMaker Pipeline** → Trains and evaluates ML models
 
-### Option A: Run the Full Pipeline (Recommended)
+### Option A: Run Glue ETL Locally
+
+For demo environments you can process data locally without provisioning Glue jobs.
+
+This workflow uses the [AWS Glue 5.0 Docker image](https://aws.amazon.com/blogs/big-data/develop-and-test-aws-glue-5-0-jobs-locally-using-a-docker-container/) and the `glue/local/docker-compose.yml` configuration.
+
+To run the Glue ETL jobs locally, run the command for your required pipeline. These commands mount the repo into the container and execute `spark-submit` inside the AWS Glue 5.0 runtime:
+
+```bash
+make run-local-bucketing-etl
+make run-local-experiment-etl
+```
+
+Processed outputs are written to `glue/local/processed/...`.
+
+You can then upload the curated datasets to your processed S3 bucket:
+
+```bash
+make upload-processed-data PROCESSED_BUCKET=aws-ml-platform-dev-processed-data-bucket
+```
+
+The Makefile also exposes `upload-processed-bucketing-data` and `upload-processed-experiment-data` if you need to upload independently.
+
+### Option B: Run the Full Pipeline on AWS (requires full setup)
 
 Run the complete end-to-end workflow using Step Functions:
 
@@ -142,7 +165,7 @@ make run-bucketing-pipeline
 make run-recommender-pipeline
 ```
 
-### Option B: Run Individual Steps
+### Option C: Run Individual Steps (requires full setup)
 
 Run Glue ETL jobs separately:
 
@@ -161,7 +184,7 @@ aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-bucke
 aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recommender-pipeline
 ```
 
-### Monitor Pipeline Execution
+## Step 10: Monitor Pipeline Execution
 
 ```bash
 # List Step Function executions
@@ -177,7 +200,7 @@ aws sagemaker list-pipeline-executions --pipeline-name aws-ml-platform-dev-bucke
 aws sagemaker list-pipeline-executions --pipeline-name aws-ml-platform-dev-recommender-pipeline
 ```
 
-## Step 10: Enable Endpoint Deployment
+## Step 11: Enable Endpoint Deployment
 
 By default, SageMaker endpoints are not deployed to avoid costs during initial setup. Once your pipeline has successfully trained a model, enable endpoint deployment:
 

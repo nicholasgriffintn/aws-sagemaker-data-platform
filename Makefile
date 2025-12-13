@@ -1,10 +1,13 @@
-.PHONY: install build deploy destroy generate-data upload-data upload-raw-data train package-model upload-model update-endpoint recommend clean help build-frontend inject-config run-pipeline run-bucketing-pipeline run-recommender-pipeline
+.PHONY: install build deploy destroy generate-data upload-data upload-raw-data train package-model upload-model update-endpoint recommend clean help build-frontend inject-config run-pipeline run-bucketing-pipeline run-recommender-pipeline run-local-bucketing-etl run-local-experiment-etl upload-processed-data upload-processed-bucketing-data upload-processed-experiment-data
 
 RAW_BUCKET ?= aws-ml-platform-dev-raw-data-bucket
 PROCESSED_BUCKET ?= aws-ml-platform-dev-processed-data-bucket
 API ?= your-api-gateway-url.execute-api.eu-west-1.amazonaws.com
 ENVIRONMENT ?= dev
 COMPONENT ?= aws-ml-platform
+GLUE_LOCAL_COMPOSE ?= docker compose -f glue/local/docker-compose.yml
+GLUE_LOCAL_RAW_BASE ?= file:///home/hadoop/workspace/local-data
+GLUE_LOCAL_PROCESSED_BASE ?= file:///home/hadoop/workspace/processed-data
 
 help:
 	@echo "AWS ML Platform - Available Commands"
@@ -26,6 +29,11 @@ help:
 	@echo "  make run-recommender-pipeline Run recommender pipeline only"
 	@echo "  make run-bucketing-etl       Run bucketing Glue ETL job"
 	@echo "  make run-experiment-etl      Run experiment Glue ETL job"
+	@echo ""
+	@echo "Data Pipeline (Local Docker):"
+	@echo "  make run-local-bucketing-etl    Run bucketing Glue ETL inside AWS Glue 5.0 Docker image"
+	@echo "  make run-local-experiment-etl   Run experiment Glue ETL inside AWS Glue 5.0 Docker image"
+	@echo "  make upload-processed-data      Upload locally processed data to processed S3 bucket"
 	@echo ""
 	@echo "Data Generation (Local):"
 	@echo "  make generate-data           Generate all synthetic data locally"
@@ -126,6 +134,26 @@ upload-bucketing-data:
 
 upload-data: upload-raw-data
 
+upload-processed-data: upload-processed-bucketing-data upload-processed-experiment-data
+
+upload-processed-bucketing-data:
+	@echo "Uploading processed bucketing data to S3 processed bucket..."
+	@if [ -z "$(PROCESSED_BUCKET)" ]; then echo "Error: PROCESSED_BUCKET not set"; exit 1; fi
+	@if [ ! -d "glue/local/processed/bucketing-pipeline/data" ]; then echo "Error: No processed bucketing data found. Run make run-local-bucketing-etl first."; exit 1; fi
+	aws s3 sync \
+		glue/local/processed/bucketing-pipeline/data \
+		s3://$(PROCESSED_BUCKET)/bucketing-pipeline/data/ \
+		--exact-timestamps
+
+upload-processed-experiment-data:
+	@echo "Uploading processed experiment data to S3 processed bucket..."
+	@if [ -z "$(PROCESSED_BUCKET)" ]; then echo "Error: PROCESSED_BUCKET not set"; exit 1; fi
+	@if [ ! -d "glue/local/processed/recommender-pipeline/data" ]; then echo "Error: No processed experiment data found. Run make run-local-experiment-etl first."; exit 1; fi
+	aws s3 sync \
+		glue/local/processed/recommender-pipeline/data \
+		s3://$(PROCESSED_BUCKET)/recommender-pipeline/data/ \
+		--exact-timestamps
+
 run-bucketing-etl:
 	@echo "Starting Bucketing ETL job..."
 	aws glue start-job-run --job-name $(COMPONENT)-$(ENVIRONMENT)-bucketing-etl
@@ -148,6 +176,26 @@ run-recommender-pipeline:
 	@echo "Starting recommender data pipeline (Step Functions)..."
 	aws stepfunctions start-execution \
 		--state-machine-arn arn:aws:states:eu-west-1:$$(aws sts get-caller-identity --query Account --output text):stateMachine:$(COMPONENT)-$(ENVIRONMENT)-recommender-data-pipeline
+
+run-local-bucketing-etl:
+	@echo "Running bucketing Glue ETL locally via Docker..."
+	$(GLUE_LOCAL_COMPOSE) run --rm glue-local \
+		spark-submit /home/hadoop/workspace/jobs/process_bucketing_data.py \
+			--JOB_NAME local-bucketing-etl \
+			--raw_bucket $(GLUE_LOCAL_RAW_BASE) \
+			--processed_bucket $(GLUE_LOCAL_PROCESSED_BASE) \
+			--raw_database local_raw \
+			--processed_database local_processed
+
+run-local-experiment-etl:
+	@echo "Running experiment Glue ETL locally via Docker..."
+	$(GLUE_LOCAL_COMPOSE) run --rm glue-local \
+		spark-submit /home/hadoop/workspace/jobs/process_experiment_data.py \
+			--JOB_NAME local-experiment-etl \
+			--raw_bucket $(GLUE_LOCAL_RAW_BASE) \
+			--processed_bucket $(GLUE_LOCAL_PROCESSED_BASE) \
+			--raw_database local_raw \
+			--processed_database local_processed
 
 train-recommender:
 	@echo "Preprocessing recommender data..."

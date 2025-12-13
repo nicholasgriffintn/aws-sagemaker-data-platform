@@ -1,0 +1,15 @@
+services:
+  glue-local:
+    image: public.ecr.aws/glue/aws-glue-libs:5
+    init: true
+    tty: true
+    stdin_open: true
+    working_dir: /home/hadoop/workspace
+    environment:
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-eu-west-1}
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+    volumes:
+      - ../jobs:/home/hadoop/workspace/jobs
+      - ../../data-generator/output:/home/hadoop/workspace/local-data
+      - ./processed:/home/hadoop/workspace/processed-data
+      - ${HOME}/.aws:/home/hadoop/.aws:ro

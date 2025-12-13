@@ -146,6 +146,8 @@ cdk.context.json
 __pycache__/
 .venv/
 data-generator/output/
+glue/local/processed/*
+!glue/local/processed/.gitkeep
 
 .DS_Store
 
