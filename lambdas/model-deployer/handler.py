@@ -92,9 +92,9 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 logger.error(f"Failed to check endpoint: {e}")
                 raise
 
-        # Build VPC config if needed
+        # Build VPC config if needed (not for serverless endpoints)
         vpc_config = None
-        if security_group_id and subnet_ids:
+        if not use_serverless and security_group_id and subnet_ids:
             vpc_config = {
                 "SecurityGroupIds": [security_group_id],
                 "Subnets": subnet_ids,

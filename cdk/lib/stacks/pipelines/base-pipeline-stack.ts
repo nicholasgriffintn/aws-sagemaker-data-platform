@@ -243,7 +243,7 @@ export abstract class BasePipelineStack extends Stack {
       );
     }
 
-    if (deployEndpoint && !useServerlessEndpoint && (props.enableModelAutoDeploy ?? true)) {
+    if (deployEndpoint && (props.enableModelAutoDeploy ?? true)) {
       new ModelAutoDeploy(this, `${config.pipelineName}ModelAutoDeploy`, {
         componentName: props.componentName,
         environmentName: props.environmentName,

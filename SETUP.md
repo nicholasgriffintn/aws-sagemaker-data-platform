@@ -41,7 +41,7 @@ Edit config/environments/dev.json with your AWS account ID:
 
 Replace YOUR_AWS_ACCOUNT_ID with the account ID from aws sts get-caller-identity.
 
-Note: `deployEndpoint` is `false` by default. Enable it after training your first model (see Step 11).
+Note: `deployEndpoint` is `false` by default. Enable it before running your first pipeline - the endpoint will be automatically created by the model auto-deployer after the first successful pipeline run (see Step 11).
 
 ## Step 3: Install All Dependencies
 
@@ -246,7 +246,7 @@ aws sagemaker list-pipeline-executions --pipeline-name aws-ml-platform-dev-recom
 
 ## Step 11: Enable Endpoint Deployment
 
-By default, SageMaker endpoints are not deployed to avoid costs during initial setup. Once your pipeline has successfully trained a model, enable endpoint deployment:
+SageMaker endpoints may not be deployed to avoid costs during initial setup. Enable endpoint deployment before running your first pipeline:
 
 1. Edit your environment config file:
 
@@ -270,7 +270,7 @@ By default, SageMaker endpoints are not deployed to avoid costs during initial s
 }
 ```
 
-2. Redeploy to create the endpoints:
+2. Redeploy to create the endpoint infrastructure:
 
 ```bash
 make deploy
@@ -279,11 +279,19 @@ make deploy
 pnpm cdk deploy --context env=demo --all --require-approval never
 ```
 
+**Important:** This deployment creates the endpoint infrastructure (monitoring, auto-deployer lambda, etc.) but does **not** create the actual endpoint yet. The endpoint will be automatically created by the model auto-deployer lambda after your first successful pipeline run when a model is approved in the Model Registry.
+
+The auto-deployer will:
+- Create the endpoint with the correct model path (including the training job ID)
+- Use the model artifacts from the Model Registry
+- Configure the endpoint with the proper VPC, security groups, and data capture settings
+- Update the endpoint automatically whenever a new model is approved
+
 Setting `useServerlessEndpoint: true` uses SageMaker Serverless Inference which scales to zero when idle. For production workloads with consistent traffic, set `useServerlessEndpoint: false` to use real-time endpoints.
 
 ## Step 12: Test the APIs
 
-Once the endpoints are deployed, get the API URLs from CloudFormation outputs:
+After your pipeline has successfully run and the endpoint has been automatically created by the model auto-deployer, get the API URLs from CloudFormation outputs:
 
 ```bash
 # Get API Gateway URLs

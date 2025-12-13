@@ -6,6 +6,6 @@
     "private": false,
     "endpointConfig": {
         "useServerlessEndpoint": true,
-        "deployEndpoint": false
+        "deployEndpoint": true
     }
 }
