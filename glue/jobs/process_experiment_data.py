@@ -58,11 +58,14 @@ results_df = spark.read.parquet(RAW_RESULTS_PATH)
 print(f"Metadata count: {metadata_df.count()}")
 print(f"Results count: {results_df.count()}")
 
+metadata_count = metadata_df.count()
+from pyspark.sql.functions import broadcast
 joined_df = results_df.join(
-    metadata_df,
+    broadcast(metadata_df),
     on="experiment_id",
     how="inner"
 )
+joined_df.cache()
 
 aggregated_df = joined_df.groupBy(
     "experiment_id",
@@ -131,8 +134,12 @@ processed_df = aggregated_df \
     .withColumn("processed_at", F.current_timestamp()) \
     .withColumn("data_version", F.lit("1.0"))
 
-print(f"Processed experiments count: {processed_df.count()}")
-print(f"Successful experiments: {processed_df.filter(F.col('is_successful') == 1).count()}")
+processed_count = processed_df.count()
+successful_count = processed_df.filter(F.col('is_successful') == 1).count()
+print(f"Processed experiments count: {processed_count}")
+print(f"Successful experiments: {successful_count}")
+
+joined_df.unpersist()
 
 print(f"Writing processed data to: {OUTPUT_PATH}")
 

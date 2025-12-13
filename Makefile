@@ -8,6 +8,8 @@ COMPONENT ?= aws-ml-platform
 GLUE_LOCAL_COMPOSE ?= docker compose -f glue/local/docker-compose.yml
 GLUE_LOCAL_RAW_BASE ?= file:///home/hadoop/workspace/local-data
 GLUE_LOCAL_PROCESSED_BASE ?= file:///home/hadoop/workspace/processed-data
+SPARK_DRIVER_MEMORY ?= 6g
+SPARK_DRIVER_MAX_RESULT_SIZE ?= 2g
 
 help:
 	@echo "AWS ML Platform - Available Commands"
@@ -60,6 +62,8 @@ help:
 	@echo "  API=api-url             Set API Gateway URL"
 	@echo "  ENVIRONMENT=env         Set environment (default: $(ENVIRONMENT))"
 	@echo "  COMPONENT=name          Set component name (default: $(COMPONENT))"
+	@echo "  SPARK_DRIVER_MEMORY=size Set Spark driver memory (default: $(SPARK_DRIVER_MEMORY))"
+	@echo "  DOCKER_MEMORY_LIMIT=size Set Docker container memory limit (default: 7g)"
 
 install:
 	pnpm install
@@ -180,7 +184,11 @@ run-recommender-pipeline:
 run-local-bucketing-etl:
 	@echo "Running bucketing Glue ETL locally via Docker..."
 	$(GLUE_LOCAL_COMPOSE) run --rm glue-local \
-		spark-submit /home/hadoop/workspace/jobs/process_bucketing_data.py \
+		spark-submit \
+			--conf spark.driver.memory=$(SPARK_DRIVER_MEMORY) \
+			--conf spark.driver.maxResultSize=$(SPARK_DRIVER_MAX_RESULT_SIZE) \
+			--conf spark.sql.shuffle.partitions=200 \
+			/home/hadoop/workspace/jobs/process_bucketing_data.py \
 			--JOB_NAME local-bucketing-etl \
 			--raw_bucket $(GLUE_LOCAL_RAW_BASE) \
 			--processed_bucket $(GLUE_LOCAL_PROCESSED_BASE) \
@@ -190,7 +198,19 @@ run-local-bucketing-etl:
 run-local-experiment-etl:
 	@echo "Running experiment Glue ETL locally via Docker..."
 	$(GLUE_LOCAL_COMPOSE) run --rm glue-local \
-		spark-submit /home/hadoop/workspace/jobs/process_experiment_data.py \
+		spark-submit \
+			--conf spark.driver.memory=$(SPARK_DRIVER_MEMORY) \
+			--conf spark.driver.maxResultSize=$(SPARK_DRIVER_MAX_RESULT_SIZE) \
+			--conf spark.sql.shuffle.partitions=200 \
+			--conf spark.sql.adaptive.enabled=true \
+			--conf spark.sql.adaptive.coalescePartitions.enabled=true \
+			--conf spark.sql.adaptive.skewJoin.enabled=true \
+			--conf spark.memory.fraction=0.8 \
+			--conf spark.memory.storageFraction=0.3 \
+			--conf spark.shuffle.spill.compress=true \
+			--conf spark.shuffle.compress=true \
+			--conf spark.io.compression.codec=snappy \
+			/home/hadoop/workspace/jobs/process_experiment_data.py \
 			--JOB_NAME local-experiment-etl \
 			--raw_bucket $(GLUE_LOCAL_RAW_BASE) \
 			--processed_bucket $(GLUE_LOCAL_PROCESSED_BASE) \
