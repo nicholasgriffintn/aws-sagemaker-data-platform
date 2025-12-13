@@ -145,17 +145,19 @@ export abstract class BasePipelineStack extends Stack {
           securityGroup: props.securityGroup,
           sagemakerImageUri: this.sagemakerImageUri,
           modelInterfaceScript: `${config.scriptDirectory}/inference.py`,
-	          kmsKeyId: props.dataKey.keyId,
-	          primaryInstanceType: this.primaryInstanceType,
+          kmsKeyId: props.dataKey.keyId,
+          primaryInstanceType: this.primaryInstanceType,
           useServerless: useServerlessEndpoint,
-	          serverlessMemorySizeMb: props.endpointConfig?.serverlessMemorySizeMb,
-	          serverlessMaxConcurrency: props.endpointConfig?.serverlessMaxConcurrency,
-	          monitoring: {
-	            pipelineName: config.pipelineName,
-	            invocationTargetValue: 100,
-	          },
-	        })
-	      : undefined;
+          serverlessMemorySizeMb: props.endpointConfig?.serverlessMemorySizeMb,
+          serverlessMaxConcurrency:
+            props.endpointConfig?.serverlessMaxConcurrency,
+          monitoring: {
+            pipelineName: config.pipelineName,
+            invocationTargetValue: 100,
+          },
+          skipInitialModel: true,
+        })
+      : undefined;
 
     this.endpoint = endpointConstruct?.resources.endpoint;
 
@@ -252,6 +254,12 @@ export abstract class BasePipelineStack extends Stack {
         kmsKey: props.dataKey,
         endpointName,
         instanceType: this.primaryInstanceType,
+        processedDataBucketName: props.processedDataBucket.bucketName,
+        dataCapturePrefix: `${config.pipelineName}-pipeline/data-capture/`,
+        useServerless: useServerlessEndpoint,
+        serverlessMemorySizeMb: props.endpointConfig?.serverlessMemorySizeMb,
+        serverlessMaxConcurrency:
+          props.endpointConfig?.serverlessMaxConcurrency,
       });
     }
 

@@ -19,6 +19,11 @@ export interface ModelAutoDeployProps {
   kmsKey: Key;
   endpointName: string;
   instanceType?: string;
+  processedDataBucketName?: string;
+  dataCapturePrefix?: string;
+  useServerless?: boolean;
+  serverlessMemorySizeMb?: number;
+  serverlessMaxConcurrency?: number;
 }
 
 /**
@@ -94,6 +99,7 @@ export class ModelAutoDeploy extends Construct {
           'sagemaker:CreateEndpointConfig',
           'sagemaker:DescribeEndpointConfig',
           'sagemaker:DeleteEndpointConfig',
+          'sagemaker:CreateEndpoint',
           'sagemaker:DescribeEndpoint',
           'sagemaker:UpdateEndpoint',
         ],
@@ -149,6 +155,18 @@ export class ModelAutoDeploy extends Construct {
         ENVIRONMENT_NAME: props.environmentName,
         SAGEMAKER_EXECUTION_ROLE_ARN: props.pipelineRole.roleArn,
         INSTANCE_TYPE: props.instanceType ?? 'ml.m5.large',
+        KMS_KEY_ID: props.kmsKey.keyId,
+        PROCESSED_DATA_BUCKET: props.processedDataBucketName ?? '',
+        DATA_CAPTURE_PREFIX:
+          props.dataCapturePrefix ??
+          `${props.pipelineName}-pipeline/data-capture/`,
+        USE_SERVERLESS: props.useServerless ? 'true' : 'false',
+        SERVERLESS_MEMORY_SIZE_MB:
+          props.serverlessMemorySizeMb?.toString() ?? '2048',
+        SERVERLESS_MAX_CONCURRENCY:
+          props.serverlessMaxConcurrency?.toString() ?? '5',
+        SECURITY_GROUP_ID: props.securityGroup.securityGroupId,
+        SUBNET_IDS: props.vpc.privateSubnets.map((s) => s.subnetId).join(','),
       },
     });
 

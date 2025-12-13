@@ -64,17 +64,43 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
         model_name = f"{endpoint_name}-model-{timestamp}"
         endpoint_config_name = f"{endpoint_name}-config-{timestamp}"
 
+        execution_role_arn = os.environ["SAGEMAKER_EXECUTION_ROLE_ARN"]
+        use_serverless = os.environ.get("USE_SERVERLESS", "false").lower() == "true"
+        instance_type = os.environ.get("INSTANCE_TYPE", "ml.m5.large")
+        kms_key_id = os.environ.get("KMS_KEY_ID", "")
+        security_group_id = os.environ.get("SECURITY_GROUP_ID", "")
+        subnet_ids_str = os.environ.get("SUBNET_IDS", "")
+        subnet_ids = [s.strip() for s in subnet_ids_str.split(",") if s.strip()] if subnet_ids_str else []
+        processed_data_bucket = os.environ.get("PROCESSED_DATA_BUCKET", "")
+        data_capture_prefix = os.environ.get("DATA_CAPTURE_PREFIX", "")
+
+        # Check if endpoint exists
+        endpoint_exists = False
+        current_config = None
         try:
             current_endpoint = sagemaker.describe_endpoint(EndpointName=endpoint_name)
+            endpoint_exists = True
             current_config = sagemaker.describe_endpoint_config(
                 EndpointConfigName=current_endpoint["EndpointConfigName"]
             )
+            logger.info(f"Endpoint {endpoint_name} exists, will update it")
         except ClientError as e:
-            logger.error(f"Failed to get current endpoint config: {e}")
-            raise
+            if e.response["Error"]["Code"] == "ValidationException":
+                logger.info(f"Endpoint {endpoint_name} does not exist, will create it")
+                endpoint_exists = False
+            else:
+                logger.error(f"Failed to check endpoint: {e}")
+                raise
 
-        execution_role_arn = os.environ["SAGEMAKER_EXECUTION_ROLE_ARN"]
-        
+        # Build VPC config if needed
+        vpc_config = None
+        if security_group_id and subnet_ids:
+            vpc_config = {
+                "SecurityGroupIds": [security_group_id],
+                "Subnets": subnet_ids,
+            }
+
+        # Create model
         model_params = {
             "ModelName": model_name,
             "ExecutionRoleArn": execution_role_arn,
@@ -83,46 +109,77 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                 "ModelDataUrl": model_data_url,
             },
         }
-
-        vpc_config = current_config.get("ProductionVariants", [{}])[0].get("VpcConfig")
         if vpc_config:
             model_params["VpcConfig"] = vpc_config
 
         logger.info(f"Creating model: {model_name}")
         sagemaker.create_model(**model_params)
 
-        production_variants = current_config.get("ProductionVariants", [])
-        if production_variants:
-            for variant in production_variants:
-                variant["ModelName"] = model_name
-
-        endpoint_config_params = {
-            "EndpointConfigName": endpoint_config_name,
-            "ProductionVariants": production_variants or [
+        # Build production variants
+        if use_serverless:
+            production_variants = [
+                {
+                    "VariantName": "primary",
+                    "ModelName": model_name,
+                    "ServerlessConfig": {
+                        "MemorySizeInMb": int(os.environ.get("SERVERLESS_MEMORY_SIZE_MB", "2048")),
+                        "MaxConcurrency": int(os.environ.get("SERVERLESS_MAX_CONCURRENCY", "5")),
+                    },
+                }
+            ]
+        else:
+            production_variants = [
                 {
                     "VariantName": "primary",
                     "ModelName": model_name,
                     "InitialInstanceCount": 1,
-                    "InstanceType": os.environ.get("INSTANCE_TYPE", "ml.m5.large"),
+                    "InstanceType": instance_type,
                     "InitialVariantWeight": 1.0,
                 }
-            ],
+            ]
+
+        # Build endpoint config
+        endpoint_config_params = {
+            "EndpointConfigName": endpoint_config_name,
+            "ProductionVariants": production_variants,
         }
 
-        if "KmsKeyId" in current_config:
-            endpoint_config_params["KmsKeyId"] = current_config["KmsKeyId"]
+        if kms_key_id:
+            endpoint_config_params["KmsKeyId"] = kms_key_id
 
-        if "DataCaptureConfig" in current_config:
-            endpoint_config_params["DataCaptureConfig"] = current_config["DataCaptureConfig"]
+        # Add data capture config for non-serverless endpoints
+        if not use_serverless and processed_data_bucket and data_capture_prefix:
+            endpoint_config_params["DataCaptureConfig"] = {
+                "EnableCapture": True,
+                "InitialSamplingPercentage": 100,
+                "DestinationS3Uri": f"s3://{processed_data_bucket}/{data_capture_prefix}",
+                "KmsKeyId": kms_key_id,
+                "CaptureOptions": [
+                    {"CaptureMode": "Input"},
+                    {"CaptureMode": "Output"},
+                ],
+                "CaptureContentTypeHeader": {
+                    "JsonContentTypes": ["application/json"],
+                    "CsvContentTypes": ["text/csv"],
+                },
+            }
 
         logger.info(f"Creating endpoint config: {endpoint_config_name}")
         sagemaker.create_endpoint_config(**endpoint_config_params)
 
-        logger.info(f"Updating endpoint {endpoint_name} with new config")
-        sagemaker.update_endpoint(
-            EndpointName=endpoint_name,
-            EndpointConfigName=endpoint_config_name,
-        )
+        # Create or update endpoint
+        if endpoint_exists:
+            logger.info(f"Updating endpoint {endpoint_name} with new config")
+            sagemaker.update_endpoint(
+                EndpointName=endpoint_name,
+                EndpointConfigName=endpoint_config_name,
+            )
+        else:
+            logger.info(f"Creating endpoint {endpoint_name} with new config")
+            sagemaker.create_endpoint(
+                EndpointName=endpoint_name,
+                EndpointConfigName=endpoint_config_name,
+            )
 
         return {
             "statusCode": 200,
