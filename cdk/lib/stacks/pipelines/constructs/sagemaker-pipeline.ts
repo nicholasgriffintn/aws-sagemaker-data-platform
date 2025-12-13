@@ -382,12 +382,16 @@ export class SageMakerPipeline extends Construct {
                     SupportedContentTypes: ['application/json'],
                     SupportedResponseMIMETypes: ['application/json'],
                     SupportedRealtimeInferenceInstanceTypes: [
-                      props.primaryInstanceType,
-                      props.secondaryInstanceType,
+                      props.endpointInstanceTypes?.primary ??
+                        props.primaryInstanceType,
+                      props.endpointInstanceTypes?.secondary ??
+                        props.secondaryInstanceType,
                     ],
                     SupportedTransformInstanceTypes: [
-                      props.primaryInstanceType,
-                      props.secondaryInstanceType,
+                      props.endpointInstanceTypes?.primary ??
+                        props.primaryInstanceType,
+                      props.endpointInstanceTypes?.secondary ??
+                        props.secondaryInstanceType,
                     ],
                   },
                   ModelMetrics: {

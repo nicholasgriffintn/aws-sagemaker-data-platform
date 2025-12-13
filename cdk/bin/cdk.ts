@@ -37,6 +37,15 @@ interface StackToggles {
   recommenderPipeline?: boolean;
 }
 
+interface InstanceTypeConfig {
+  primary?: string;
+  secondary?: string;
+  trainingPrimary?: string;
+  trainingSecondary?: string;
+  endpointPrimary?: string;
+  endpointSecondary?: string;
+}
+
 interface EnvConfig {
   componentName: string;
   awsAccount: string;
@@ -44,6 +53,7 @@ interface EnvConfig {
   private: boolean;
   endpointConfig?: EndpointConfig;
   stacks?: StackToggles;
+  instanceTypes?: InstanceTypeConfig;
 }
 
 function getEnv(): string {
@@ -248,6 +258,7 @@ const experimentPipeline = stackToggles.experimentPipeline
         featureGroupName:
           featureInfra?.featureGroupName ?? demoFeatureGroupName,
         endpointConfig: cfg.endpointConfig,
+        instanceTypes: cfg.instanceTypes,
       }
     )
   : undefined;
@@ -278,6 +289,7 @@ const recommenderPipeline = stackToggles.recommenderPipeline
         pipelineRole: iam.pipelineRole,
         lambdaExecutionRole: iam.lambdaExecutionRole,
         endpointConfig: cfg.endpointConfig,
+        instanceTypes: cfg.instanceTypes,
       }
     )
   : undefined;

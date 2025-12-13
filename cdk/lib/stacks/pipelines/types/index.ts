@@ -40,4 +40,8 @@ export interface SageMakerPipelineProps {
   secondaryInstanceType: string;
   scriptLocations?: Partial<PipelineScriptLocations>;
   parameterOverrides?: PipelineParameterOverrides;
+  endpointInstanceTypes?: {
+    primary: string;
+    secondary: string;
+  };
 }

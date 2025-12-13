@@ -1,5 +1,5 @@
 {
-  "_comment": "Lightweight demo deployment that skips data lake, Glue, Studio, and feature store stacks",
+    "_comment": "IMPORTANT: Replace the account ID with your actual AWS account ID before deploying.",
   "componentName": "aws-ml-platform",
   "awsAccount": "731330499349",
   "awsRegion": "eu-west-1",
@@ -7,6 +7,14 @@
   "endpointConfig": {
     "deployEndpoint": false,
     "useServerlessEndpoint": true
+  },
+  "instanceTypes": {
+    "primary": "ml.t3.medium",
+    "secondary": "ml.t3.large",
+    "trainingPrimary": "ml.m5.large",
+    "trainingSecondary": "ml.m5.xlarge",
+    "endpointPrimary": "ml.m5.large",
+    "endpointSecondary": "ml.m5.xlarge"
   },
   "stacks": {
     "glue": false,

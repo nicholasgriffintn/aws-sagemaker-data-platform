@@ -33,6 +33,15 @@ export interface EndpointConfig {
   serverlessMaxConcurrency?: number;
 }
 
+export interface InstanceTypeConfig {
+  primary?: string;
+  secondary?: string;
+  trainingPrimary?: string;
+  trainingSecondary?: string;
+  endpointPrimary?: string;
+  endpointSecondary?: string;
+}
+
 export interface PipelineStackProps
   extends BaseStackProps,
     VpcAwareProps,
@@ -44,4 +53,5 @@ export interface PipelineStackProps
   retrainingSchedule?: string;
   enableModelAutoDeploy?: boolean;
   endpointConfig?: EndpointConfig;
+  instanceTypes?: InstanceTypeConfig;
 }

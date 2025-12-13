@@ -69,10 +69,15 @@ export abstract class BasePipelineStack extends Stack {
   ) {
     super(scope, id, props);
 
-    this.primaryInstanceType = INSTANCE_TYPES.PRIMARY;
-    this.secondaryInstanceType = INSTANCE_TYPES.SECONDARY;
+    this.primaryInstanceType =
+      props.instanceTypes?.primary ?? INSTANCE_TYPES.PRIMARY;
+    this.secondaryInstanceType =
+      props.instanceTypes?.secondary ?? INSTANCE_TYPES.SECONDARY;
     this.pipelineName = config.pipelineName;
-    this.sagemakerImageUri = getSageMakerImageUri(this.region, config.framework);
+    this.sagemakerImageUri = getSageMakerImageUri(
+      this.region,
+      config.framework
+    );
 
     const pipelinePrefix = getPipelinePrefix(config.pipelineName);
 
@@ -103,6 +108,23 @@ export abstract class BasePipelineStack extends Stack {
         primaryInstanceType: this.primaryInstanceType,
         secondaryInstanceType: this.secondaryInstanceType,
         scriptLocations,
+        parameterOverrides: props.instanceTypes?.trainingPrimary
+          ? {
+              trainingInstanceType: props.instanceTypes.trainingPrimary,
+            }
+          : undefined,
+        endpointInstanceTypes:
+          props.instanceTypes?.endpointPrimary ||
+          props.instanceTypes?.endpointSecondary
+            ? {
+                primary:
+                  props.instanceTypes.endpointPrimary ??
+                  this.primaryInstanceType,
+                secondary:
+                  props.instanceTypes.endpointSecondary ??
+                  this.secondaryInstanceType,
+              }
+            : undefined,
       }
     );
 
