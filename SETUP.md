@@ -100,17 +100,36 @@ Or with explicit environment:
 
 After deployment completes, generate synthetic raw data and upload to the raw S3 bucket:
 
+**First, find your raw data bucket name:**
+
+```bash
+# For dev environment
+aws cloudformation describe-stacks \
+  --stack-name aws-ml-platform-Storage-dev \
+  --query 'Stacks[0].Outputs[?OutputKey==`raw_data_bucket_name`].OutputValue' \
+  --output text
+
+# For demo environment
+aws cloudformation describe-stacks \
+  --stack-name aws-ml-platform-Storage-demo \
+  --query 'Stacks[0].Outputs[?OutputKey==`raw_data_bucket_name`].OutputValue' \
+  --output text
+```
+
+**Then generate and upload:**
+
 ```bash
 # Generate synthetic data locally
 make generate-data
 
-# Upload raw data to S3 raw bucket
+# Upload raw data to S3 raw bucket (replace with your actual bucket name)
 make upload-raw-data RAW_BUCKET=aws-ml-platform-dev-raw-data-bucket
 ```
 
 Or upload specific datasets:
 
 ```bash
+# Upload individual data (replace with your actual bucket name)
 make upload-experiment-data RAW_BUCKET=aws-ml-platform-dev-raw-data-bucket
 make upload-bucketing-data RAW_BUCKET=aws-ml-platform-dev-raw-data-bucket
 ```
@@ -125,26 +144,50 @@ The platform uses a complete data pipeline workflow:
 
 ### Option A: Run Glue ETL Locally
 
-For demo environments you can process data locally without provisioning Glue jobs.
+You can process data locally without provisioning Glue jobs.
 
 This workflow uses the [AWS Glue 5.0 Docker image](https://aws.amazon.com/blogs/big-data/develop-and-test-aws-glue-5-0-jobs-locally-using-a-docker-container/) and the `glue/local/docker-compose.yml` configuration.
 
 To run the Glue ETL jobs locally, run the command for your required pipeline. These commands mount the repo into the container and execute `spark-submit` inside the AWS Glue 5.0 runtime:
 
 ```bash
-make run-local-bucketing-etl
+# For recommender pipeline (experiment data)
 make run-local-experiment-etl
+
+# For bucketing pipeline (if you need it)
+make run-local-bucketing-etl
 ```
 
 Processed outputs are written to `glue/local/processed/...`.
 
-You can then upload the curated datasets to your processed S3 bucket:
+Then you need to find your processed data bucket name:
 
 ```bash
-make upload-processed-data PROCESSED_BUCKET=aws-ml-platform-dev-processed-data-bucket
+aws cloudformation describe-stacks \
+  --stack-name aws-ml-platform-Storage-demo \
+  --query 'Stacks[0].Outputs[?OutputKey==`processed_data_bucket_name`].OutputValue' \
+  --output text
+```
+
+Then you can upload the processed data to S3:
+
+```bash
+# For recommender pipeline (experiment data)
+make upload-processed-experiment-data PROCESSED_BUCKET=aws-ml-platform-demo-processed-data-bucket
+
+# Or upload all processed data
+make upload-processed-data PROCESSED_BUCKET=aws-ml-platform-demo-processed-data-bucket
 ```
 
 The Makefile also exposes `upload-processed-bucketing-data` and `upload-processed-experiment-data` if you need to upload independently.
+
+After the processed data is uploaded, you can run the SageMaker pipelines:
+
+```bash
+# (replace with your actual pipeline name)
+aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-bucketing-pipeline
+aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recommender-pipeline
+```
 
 ### Option B: Run the Full Pipeline on AWS (requires full setup)
 
@@ -180,6 +223,7 @@ make run-experiment-etl
 Then run SageMaker pipelines:
 
 ```bash
+# (replace with your actual pipeline name)
 aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-bucketing-pipeline
 aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recommender-pipeline
 ```
@@ -187,15 +231,15 @@ aws sagemaker start-pipeline-execution --pipeline-name aws-ml-platform-dev-recom
 ## Step 10: Monitor Pipeline Execution
 
 ```bash
-# List Step Function executions
+# List Step Function executions (replace with your actual state machine name)
 aws stepfunctions list-executions \
   --state-machine-arn arn:aws:states:eu-west-1:$(aws sts get-caller-identity --query Account --output text):stateMachine:aws-ml-platform-dev-full-data-pipeline
 
-# Check Glue job runs
+# Check Glue job runs (replace with your actual job name)
 aws glue get-job-runs --job-name aws-ml-platform-dev-bucketing-etl
 aws glue get-job-runs --job-name aws-ml-platform-dev-experiment-etl
 
-# List SageMaker pipeline executions
+# List SageMaker pipeline executions (replace with your actual pipeline name)
 aws sagemaker list-pipeline-executions --pipeline-name aws-ml-platform-dev-bucketing-pipeline
 aws sagemaker list-pipeline-executions --pipeline-name aws-ml-platform-dev-recommender-pipeline
 ```
@@ -204,8 +248,19 @@ aws sagemaker list-pipeline-executions --pipeline-name aws-ml-platform-dev-recom
 
 By default, SageMaker endpoints are not deployed to avoid costs during initial setup. Once your pipeline has successfully trained a model, enable endpoint deployment:
 
-1. Edit `config/environments/dev.json`:
+1. Edit your environment config file:
 
+**For dev environment** - Edit `config/environments/dev.json`:
+```json
+{
+  "endpointConfig": {
+    "deployEndpoint": true,
+    "useServerlessEndpoint": true
+  }
+}
+```
+
+**For demo environment** - Edit `config/environments/demo.json`:
 ```json
 {
   "endpointConfig": {
@@ -219,6 +274,9 @@ By default, SageMaker endpoints are not deployed to avoid costs during initial s
 
 ```bash
 make deploy
+
+# For demo environment
+pnpm cdk deploy --context env=demo --all --require-approval never
 ```
 
 Setting `useServerlessEndpoint: true` uses SageMaker Serverless Inference which scales to zero when idle. For production workloads with consistent traffic, set `useServerlessEndpoint: false` to use real-time endpoints.
@@ -268,6 +326,7 @@ Go to AWS Console → SageMaker → Domains and open your studio to explore:
 Inject the API endpoint URLs and keys into the frontend configuration:
 
 ```bash
+# (replace with your actual environment)
 cd frontend && node scripts/inject-config.js dev
 ```
 
@@ -282,13 +341,18 @@ cd frontend && pnpm run build
 And then from the root directory:
 
 ```bash
+# For dev environment
 make deploy
+
+# For demo environment
+pnpm cdk deploy --context env=demo --all --require-approval never
 ```
 
 ## Step 15: View the Frontend
 
 Get the CloudFront URL:
 
+(replace with your actual environment)
 ```bash
 aws cloudformation describe-stacks \
   --stack-name aws-ml-platform-Frontend-dev \
