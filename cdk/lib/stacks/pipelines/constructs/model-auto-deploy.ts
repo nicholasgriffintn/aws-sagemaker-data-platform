@@ -42,7 +42,7 @@ export class ModelAutoDeploy extends Construct {
   constructor(scope: Construct, id: string, props: ModelAutoDeployProps) {
     super(scope, id);
 
-    const modelPackageGroupName = `${props.componentName}-${props.pipelineName}-model-group`;
+    const modelPackageGroupName = `${props.componentName}-${props.environmentName}-${props.pipelineName}-models`;
 
     this.modelPackageGroup = new CfnModelPackageGroup(
       this,

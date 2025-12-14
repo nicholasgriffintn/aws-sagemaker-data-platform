@@ -51,7 +51,7 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             model_package_group = detail.get("ModelPackageGroupName", "")
             component_name = os.environ.get("COMPONENT_NAME", "aws-ml-platform")
             environment_name = os.environ.get("ENVIRONMENT_NAME", "dev")
-            pipeline_name = model_package_group.replace(f"{component_name}-", "").replace("-model-group", "")
+            pipeline_name = model_package_group.replace(f"{component_name}-{environment_name}-", "").replace("-models", "")
             endpoint_name = f"{component_name}-{environment_name}-{pipeline_name}-endpoint"
 
         logger.info(f"Deploying model {model_package_arn} to endpoint {endpoint_name}")
