@@ -6,7 +6,6 @@ import { PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
 import { Tracing } from 'aws-cdk-lib/aws-lambda';
-import { CfnModelPackageGroup } from 'aws-cdk-lib/aws-sagemaker';
 import { Construct } from 'constructs';
 
 export interface ModelAutoDeployProps {
@@ -30,12 +29,13 @@ export interface ModelAutoDeployProps {
  * Construct for automatic model deployment from Model Registry.
  *
  * Creates:
- * - SageMaker Model Package Group for the pipeline
  * - EventBridge rule to trigger on model approval
  * - Lambda function to update the endpoint with approved models
+ *
+ * Note: The Model Package Group is created automatically by the SageMaker pipeline
+ * when it first registers a model, so we don't create it here.
  */
 export class ModelAutoDeploy extends Construct {
-  public readonly modelPackageGroup: CfnModelPackageGroup;
   public readonly deployerLambda: lambda.Function;
   public readonly deployerRole: Role;
 
@@ -43,20 +43,6 @@ export class ModelAutoDeploy extends Construct {
     super(scope, id);
 
     const modelPackageGroupName = `${props.componentName}-${props.environmentName}-${props.pipelineName}-models`;
-
-    this.modelPackageGroup = new CfnModelPackageGroup(
-      this,
-      'ModelPackageGroup',
-      {
-        modelPackageGroupName,
-        modelPackageGroupDescription: `Model registry for ${props.pipelineName} pipeline`,
-        tags: [
-          { key: 'Component', value: props.componentName },
-          { key: 'Environment', value: props.environmentName },
-          { key: 'Pipeline', value: props.pipelineName },
-        ],
-      }
-    );
 
     this.deployerRole = new Role(this, 'DeployerRole', {
       roleName: `${props.componentName}-${props.environmentName}-${props.pipelineName}-deployer-role`,
