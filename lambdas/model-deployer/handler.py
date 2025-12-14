@@ -122,7 +122,7 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
                     "VariantName": "primary",
                     "ModelName": model_name,
                     "ServerlessConfig": {
-                        "MemorySizeInMb": int(os.environ.get("SERVERLESS_MEMORY_SIZE_MB", "2048")),
+                        "MemorySizeInMB": int(os.environ.get("SERVERLESS_MEMORY_SIZE_MB", "2048")),
                         "MaxConcurrency": int(os.environ.get("SERVERLESS_MAX_CONCURRENCY", "5")),
                     },
                 }
